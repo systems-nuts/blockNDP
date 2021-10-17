@@ -1,0 +1,4213 @@
+diff --git a/hw/arm/Makefile.objs b/hw/arm/Makefile.objs
+index 4c5c4ee..d54cb26 100644
+--- a/hw/arm/Makefile.objs
++++ b/hw/arm/Makefile.objs
+@@ -2,7 +2,7 @@ obj-y += boot.o collie.o exynos4_boards.o gumstix.o highbank.o
+ obj-$(CONFIG_DIGIC) += digic_boards.o
+ obj-y += integratorcp.o mainstone.o musicpal.o nseries.o
+ obj-y += omap_sx1.o palm.o realview.o spitz.o stellaris.o
+-obj-y += tosa.o versatilepb.o vexpress.o virt.o xilinx_zynq.o z2.o
++obj-y += tosa.o versatilepb.o vexpress.o virt.o xilinx_zynq.o z2.o tiger4nsc.o nvme_dev.o
+ obj-$(CONFIG_ACPI) += virt-acpi-build.o
+ obj-y += netduino2.o
+ obj-y += sysbus-fdt.o
+diff --git a/hw/arm/host_lld.h b/hw/arm/host_lld.h
+new file mode 100644
+index 0000000..75d7065
+--- /dev/null
++++ b/hw/arm/host_lld.h
+@@ -0,0 +1,430 @@
++//////////////////////////////////////////////////////////////////////////////////
++// host_lld.h for Cosmos+ OpenSSD
++// Copyright (c) 2016 Hanyang University ENC Lab.
++// Contributed by Yong Ho Song <yhsong@enc.hanyang.ac.kr>
++//				  Youngjin Jo <yjjo@enc.hanyang.ac.kr>
++//				  Sangjin Lee <sjlee@enc.hanyang.ac.kr>
++//				  Jaewook Kwak <jwkwak@enc.hanyang.ac.kr>
++//
++// This file is part of Cosmos+ OpenSSD.
++//
++// Cosmos+ OpenSSD is free software; you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation; either version 3, or (at your option)
++// any later version.
++//
++// Cosmos+ OpenSSD is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
++// See the GNU General Public License for more details.
++//
++// You should have received a copy of the GNU General Public License
++// along with Cosmos+ OpenSSD; see the file COPYING.
++// If not, see <http://www.gnu.org/licenses/>.
++//////////////////////////////////////////////////////////////////////////////////
++
++//////////////////////////////////////////////////////////////////////////////////
++// Company: ENC Lab. <http://enc.hanyang.ac.kr>
++// Engineer: Sangjin Lee <sjlee@enc.hanyang.ac.kr>
++//			 Jaewook Kwak <jwkwak@enc.hanyang.ac.kr>
++//
++// Project Name: Cosmos+ OpenSSD
++// Design Name: Cosmos+ Firmware
++// Module Name: NVMe Low Level Driver
++// File Name: host_lld.h
++//
++// Version: v1.1.0
++//
++// Description:
++//   - defines parameters and data structures of the NVMe low level driver
++//   - declares functions of the NVMe low level driver
++//////////////////////////////////////////////////////////////////////////////////
++
++//////////////////////////////////////////////////////////////////////////////////
++// Revision History:
++//
++// * v1.1.0
++//   - new DMA status type is added (HOST_DMA_ASSIST_STATUS)
++//	 - DMA partial done check functions are added
++//
++// * v1.0.0
++//   - First draft
++//////////////////////////////////////////////////////////////////////////////////
++
++#ifndef __HOST_LLD_H_
++#define __HOST_LLD_H_
++
++#define XPAR_NVMEHOSTCONTROLLER_0_BASEADDR              0x83c00000
++#define NVME_HOST_IP_ADDR                               XPAR_NVMEHOSTCONTROLLER_0_BASEADDR
++
++//QEMU needs relative addresses
++//#define HOST_IP_ADDR						(XPAR_NVMEHOSTCONTROLLER_0_BASEADDR)
++#define HOST_IP_ADDR						0
++
++#define DEV_IRQ_MASK_REG_ADDR				(HOST_IP_ADDR + 0x4)
++#define DEV_IRQ_CLEAR_REG_ADDR				(HOST_IP_ADDR + 0x8)
++#define DEV_IRQ_STATUS_REG_ADDR				(HOST_IP_ADDR + 0xC)
++
++#define PCIE_STATUS_REG_ADDR				(HOST_IP_ADDR + 0x100)
++#define PCIE_FUNC_REG_ADDR				(HOST_IP_ADDR + 0x104)
++
++#define NVME_STATUS_REG_ADDR				(HOST_IP_ADDR + 0x200)
++#define HOST_DMA_FIFO_CNT_REG_ADDR			(HOST_IP_ADDR + 0x204)
++
++#define NVME_ADMIN_QUEUE_SET_REG_ADDR		        (HOST_IP_ADDR + 0x21C)
++#define NVME_IO_SQ_SET_REG_ADDR				(HOST_IP_ADDR + 0x220)
++#define NVME_IO_SQ_SET_REG_ADDR_END			(NVME_IO_SQ_SET_REG_ADDR + 0x40)
++#define NVME_IO_CQ_SET_REG_ADDR				(HOST_IP_ADDR + 0x260)
++#define NVME_IO_CQ_SET_REG_ADDR_END			(NVME_IO_CQ_SET_REG_ADDR + 0x40)
++
++#define NVME_CMD_FIFO_REG_ADDR				(HOST_IP_ADDR + 0x300)
++#define NVME_CPL_FIFO_REG_ADDR				(HOST_IP_ADDR + 0x304)
++#define NVME_CPL_FIFO_REG_ADDR0                         (NVME_CPL_FIFO_REG_ADDR)
++#define NVME_CPL_FIFO_REG_ADDR1                         (NVME_CPL_FIFO_REG_ADDR + 0x4)
++#define NVME_CPL_FIFO_REG_ADDR2                         (NVME_CPL_FIFO_REG_ADDR + 0x8)
++#define HOST_DMA_CMD_FIFO_REG_ADDR			(HOST_IP_ADDR + 0x310)
++#define HOST_DMA_CMD_FIFO_REG_ADDR0                     (HOST_DMA_CMD_FIFO_REG_ADDR)
++#define HOST_DMA_CMD_FIFO_REG_ADDR1                     (HOST_DMA_CMD_FIFO_REG_ADDR + 0x4)
++#define HOST_DMA_CMD_FIFO_REG_ADDR2                     (HOST_DMA_CMD_FIFO_REG_ADDR + 0x8)
++#define HOST_DMA_CMD_FIFO_REG_ADDR3                     (HOST_DMA_CMD_FIFO_REG_ADDR + 0xC)
++
++#define NVME_CMD_SRAM_ADDR				(HOST_IP_ADDR + 0x2000)
++
++
++
++#define HOST_DMA_DIRECT_TYPE				(1)
++#define HOST_DMA_AUTO_TYPE					(0)
++
++#define HOST_DMA_TX_DIRECTION				(1)
++#define HOST_DMA_RX_DIRECTION				(0)
++
++#define ONLY_CPL_TYPE						(0)
++#define AUTO_CPL_TYPE						(1)
++#define CMD_SLOT_RELEASE_TYPE				(2)
++
++// NOTE Those are all unions the higher uint32_t triggers the cmd
++// NOTE Need to force 4byte R/W
++
++#pragma pack(push, 1)
++
++
++
++//offset: 0x4, 0x8, 0xc, size:4
++typedef struct _DEV_IRQ_REG
++{
++	union {
++		unsigned int dword;
++		struct {
++			unsigned int pcieLink			:1;
++			unsigned int busMaster			:1;
++			unsigned int pcieIrq			:1;
++			unsigned int pcieMsi			:1;
++			unsigned int pcieMsix			:1;
++			unsigned int nvmeCcEn			:1;
++			unsigned int nvmeCcShn			:1;
++			unsigned int mAxiWriteErr		:1;
++			unsigned int mAxiReadErr		:1;
++			unsigned int pcieMreqErr		:1;
++			unsigned int pcieCpldErr		:1;
++			unsigned int pcieCpldLenErr		:1;
++			unsigned int reserved0			:20;
++		};
++	};
++} DEV_IRQ_REG;
++
++//offset: 0x100, size: 4
++typedef struct _PCIE_STATUS_REG
++{
++	union {
++		unsigned int dword;
++		struct {
++			unsigned int ltssm				:6;
++			unsigned int reserved0			:2;
++			unsigned int pcieLinkUp			:1;
++			unsigned int reserved1			:23;
++		};
++	};
++} PCIE_STATUS_REG;
++
++//offset: 0x104, size: 4
++typedef struct _PCIE_FUNC_REG
++{
++	union {
++		unsigned int dword;
++		struct {
++			unsigned int busMaster			:1;
++			unsigned int msiEnable			:1;
++			unsigned int msixEnable			:1;
++			unsigned int irqDisable			:1;
++			unsigned int msiVecNum			:3;
++			unsigned int reserved0			:25;
++		};
++	};
++} PCIE_FUNC_REG;
++
++//offset: 0x00000200, size: 4
++typedef struct _NVME_STATUS_REG
++{
++	union {
++		unsigned int dword;
++		struct {
++			unsigned int ccEn				:1;
++			unsigned int ccShn				:2;
++			unsigned int reserved0			:1;
++			unsigned int cstsRdy			:1;
++			unsigned int cstsShst			:2;
++			unsigned int reserved1			:25;
++		};
++	};
++} NVME_STATUS_REG;
++
++//offset: 0x00000300, size: 4
++typedef struct _NVME_CMD_FIFO_REG
++{
++	union {
++		unsigned int dword;
++		struct {
++			unsigned int qID				:4;
++			unsigned int reserved0			:4;
++			unsigned int cmdSlotTag			:7;
++			unsigned int reserved2			:1;
++			unsigned int cmdSeqNum			:8;
++			unsigned int reserved3			:7;
++			unsigned int cmdValid			:1;
++		};
++	};
++} NVME_CMD_FIFO_REG;
++
++//offset: 0x00000304, size: 12
++typedef struct _NVME_CPL_FIFO_REG
++{
++	union {
++		unsigned int dword[3];
++		struct {
++			struct 
++			{
++				unsigned int cid				:16;
++				unsigned int sqId				:4;
++				unsigned int reserved0			:12;
++			};
++
++			unsigned int specific;
++
++			unsigned short cmdSlotTag			:7;
++			unsigned short reserved1			:7;
++			unsigned short cplType				:2;
++
++			union {
++				unsigned short statusFieldWord;
++				struct 
++				{
++					unsigned short reserved0	:1;
++					unsigned short SC			:8;
++					unsigned short SCT			:3;
++					unsigned short reserved1	:2;
++					unsigned short MORE			:1;
++					unsigned short DNR			:1;
++				}statusField;
++			};
++		};
++	};
++} NVME_CPL_FIFO_REG;
++
++//offset: 0x0000021C, size: 4
++typedef struct _NVME_ADMIN_QUEUE_SET_REG
++{
++	union {
++		unsigned int dword;
++		struct {
++			unsigned int cqValid			:1;
++			unsigned int sqValid			:1;
++			unsigned int cqIrqEn			:1;
++			unsigned int reserved0			:29;
++		};
++	};
++} NVME_ADMIN_QUEUE_SET_REG;
++
++//offset: 0x00000220, size: 8
++typedef struct _NVME_IO_SQ_SET_REG
++{
++	union {
++		unsigned int dword[2];
++		struct {
++			unsigned int pcieBaseAddrL;
++			unsigned int pcieBaseAddrH		:4;
++			unsigned int reserved0			:11;
++			unsigned int valid				:1;
++			unsigned int cqVector			:4;
++			unsigned int reserved1			:4;
++			unsigned int sqSize				:8;
++		};
++	};
++} NVME_IO_SQ_SET_REG;
++/* 0x40 (64) vector of 8 */
++
++
++//offset: 0x00000260, size: 8
++typedef struct _NVME_IO_CQ_SET_REG
++{
++	union {
++		unsigned int dword[2];
++		struct {
++			unsigned int pcieBaseAddrL;
++			unsigned int pcieBaseAddrH		:4;
++			unsigned int reserved0			:11;
++			unsigned int valid				:1;
++			unsigned int irqVector			:3;
++			unsigned int irqEn				:1;
++			unsigned int reserved1			:4;
++			unsigned int cqSize				:8;
++		};
++	};
++} NVME_IO_CQ_SET_REG;
++/* 0x40 (64) vector of 8 */
++
++//offset: 0x00000204, size: 4
++typedef struct _HOST_DMA_FIFO_CNT_REG
++{
++	union {
++		unsigned int dword;
++		struct 
++		{
++			unsigned char directDmaRx;
++			unsigned char directDmaTx;
++			unsigned char autoDmaRx;
++			unsigned char autoDmaTx;
++		};
++	};
++} HOST_DMA_FIFO_CNT_REG;
++
++//offset: 0x0000030C, size: 16
++typedef struct _HOST_DMA_CMD_FIFO_REG
++{
++	union {
++		unsigned int dword[4];
++		struct 
++		{
++			unsigned int devAddr;
++			unsigned int pcieAddrH;
++			unsigned int pcieAddrL;			
++			struct 
++			{
++				unsigned int dmaLen				:13;
++				unsigned int reserved0			:1;
++				unsigned int cmd4KBOffset		:9;
++				unsigned int cmdSlotTag			:7;
++				unsigned int dmaDirection		:1;
++				unsigned int dmaType			:1;
++			};
++		};
++	};
++} HOST_DMA_CMD_FIFO_REG;
++
++//offset: 0x00002000, size: 64 * 128 = 8192
++typedef struct _NVME_CMD_SRAM
++{
++	unsigned int dword[128][16];
++} NVME_CMD_SRAM;
++
++//#define NVME_DEV_SIZE ((NVME_CMD_SRAM_ADDR) + (128 * 16 * sizeof(unsigned int)))
++#define NVME_DEV_SIZE ((NVME_CMD_SRAM_ADDR) + sizeof(NVME_CMD_SRAM))
++
++typedef struct _CONTROLLER
++{
++        unsigned int pad_0[1];
++        DEV_IRQ_REG dev_irq_mask_reg;
++        DEV_IRQ_REG dev_irq_clear_reg;
++        DEV_IRQ_REG dev_irq_status_reg;
++        unsigned int pad_1[(0x100 - 0x10)];
++        PCIE_STATUS_REG pcie_status_reg;
++        PCIE_FUNC_REG pcie_func_reg;
++        unsigned int pad_2[(0x200 - 0x108)];
++        NVME_STATUS_REG nvme_status_reg;
++        HOST_DMA_FIFO_CNT_REG host_dma_fifo_cnt_reg;
++        unsigned int pad_3[(0x21c - 0x208)];
++        NVME_ADMIN_QUEUE_SET_REG nvme_admin_queue_set_reg;
++        NVME_IO_SQ_SET_REG nvme_io_sq_set_reg[8];
++        NVME_IO_CQ_SET_REG nvme_io_cq_set_reg[8];
++        unsigned int pad_4[(0x300 - 0x280)];
++        NVME_CMD_FIFO_REG nvme_cmd_fifo_reg;
++        NVME_CPL_FIFO_REG nvme_cpl_fifo_reg;
++        HOST_DMA_CMD_FIFO_REG host_dma_cmd_fifo_reg;
++        unsigned int pad_5[(0x2000 - 0x320)];
++        NVME_CMD_SRAM nvme_cmd_sram;
++} CONTROLLER;
++
++
++
++#pragma pack(pop)
++
++// Globals 
++
++typedef struct _HOST_DMA_STATUS
++{
++	HOST_DMA_FIFO_CNT_REG fifoHead;
++	HOST_DMA_FIFO_CNT_REG fifoTail;
++	unsigned int directDmaTxCnt;
++	unsigned int directDmaRxCnt;
++	unsigned int autoDmaTxCnt;
++	unsigned int autoDmaRxCnt;
++} HOST_DMA_STATUS;
++
++
++typedef struct _HOST_DMA_ASSIST_STATUS
++{
++	unsigned int autoDmaTxOverFlowCnt;
++	unsigned int autoDmaRxOverFlowCnt;
++} HOST_DMA_ASSIST_STATUS;
++
++#if 0
++
++void dev_irq_init();
++
++void dev_irq_handler();
++
++unsigned int check_nvme_cc_en();
++
++void set_nvme_csts_rdy();
++
++void set_nvme_csts_shst(unsigned int shst);
++
++void set_nvme_admin_queue(unsigned int sqValid, unsigned int cqValid, unsigned int cqIrqEn);
++
++unsigned int get_nvme_cmd(unsigned short *qID, unsigned short *cmdSlotTag, unsigned int *cmdSeqNum, unsigned int *cmdDword);
++
++void set_auto_nvme_cpl(unsigned int cmdSlotTag, unsigned int specific, unsigned int statusFieldWord);
++
++void set_nvme_slot_release(unsigned int cmdSlotTag);
++
++void set_nvme_cpl(unsigned int sqId, unsigned int cid, unsigned int specific, unsigned int statusFieldWord);
++
++void set_io_sq(unsigned int ioSqIdx, unsigned int valid, unsigned int cqVector, unsigned int qSzie, unsigned int pcieBaseAddrL, unsigned int pcieBaseAddrH);
++
++void set_io_cq(unsigned int ioCqIdx, unsigned int valid, unsigned int irqEn, unsigned int irqVector, unsigned int qSzie, unsigned int pcieBaseAddrL, unsigned int pcieBaseAddrH);
++
++void set_direct_tx_dma(unsigned int devAddr, unsigned int pcieAddrH, unsigned int pcieAddrL, unsigned int len);
++
++void set_direct_rx_dma(unsigned int devAddr, unsigned int pcieAddrH, unsigned int pcieAddrL, unsigned int len);
++
++void set_auto_tx_dma(unsigned int cmdSlotTag, unsigned int cmd4KBOffset, unsigned int devAddr);
++
++void set_auto_rx_dma(unsigned int cmdSlotTag, unsigned int cmd4KBOffset, unsigned int devAddr);
++
++void check_direct_tx_dma_done();
++
++void check_direct_rx_dma_done();
++
++void check_auto_tx_dma_done();
++
++void check_auto_rx_dma_done();
++
++unsigned int check_auto_tx_dma_partial_done(unsigned int tailIndex, unsigned int tailAssistIndex);
++
++unsigned int check_auto_rx_dma_partial_done(unsigned int tailIndex, unsigned int tailAssistIndex);
++
++extern HOST_DMA_STATUS g_hostDmaStatus;
++extern HOST_DMA_ASSIST_STATUS g_hostDmaAssistStatus;
++
++#endif
++
++#endif	//__HOST_LLD_H_
+diff --git a/hw/arm/nvme_dev.c b/hw/arm/nvme_dev.c
+new file mode 100644
+index 0000000..9849336
+--- /dev/null
++++ b/hw/arm/nvme_dev.c
+@@ -0,0 +1,1232 @@
++/*
++ * Antonio Barbalace,  2017
++ *
++ * Most of this file originates from the host_dll source code of Cosmos+
++ */
++
++/**
++ * Usage: add options:
++ *      -drive file=<file>,if=none,id=<drive_id> 
++ *      -device nvme_dev,drive=<drive_id>,ways=8,
++ *
++ */
++
++/*#include "hw/sysbus.h"
++#include "hw/devices.h"
++#include "hw/flash.h"
++#include "sysemu/blockdev.h"
++*/
++
++#include "qemu/osdep.h"
++#include "qapi/error.h"
++#include "qemu-common.h"
++#include "qemu/log.h"
++#include "qemu/error-report.h"
++#include "qemu/event_notifier.h"
++#include "qom/object_interfaces.h"
++#include "chardev/char-fe.h"
++
++#include "hw/qdev.h"
++#include "hw/block/block.h"
++#include "hw/hw.h"
++#include "hw/sysbus.h"
++//#include "hw/block/flash.h"
++//#include "qapi/error.h"
++//#include "qapi/visitor.h"
++#include "sysemu/sysemu.h"
++#include "sysemu/block-backend.h"
++#include "sysemu/dma.h"
++
++//the following contains the main data structures from the Cosmos FPGA NVMe implementation (includes offsets)
++#include "host_lld.h"
++
++#define DEBUGME
++#ifdef DEBUGME
++#define DPRINTF(fmt, ...) \
++do { fprintf(stderr, "nvme_dev: " fmt , ## __VA_ARGS__); } while (0)
++#else
++#define DPRINTF(fmt, ...) \
++do {} while (0)
++#endif
++
++/* TODO add these in another file */
++// submission queue *******************************************************************
++typedef struct NvmeCmd {
++    uint8_t     opcode;
++    uint8_t     fuse;
++    uint16_t    cid;
++    uint32_t    nsid;
++    uint64_t    res1;
++    uint64_t    mptr;
++    uint64_t    prp1;
++    uint64_t    prp2;
++    uint32_t    cdw10;
++    uint32_t    cdw11;
++    uint32_t    cdw12;
++    uint32_t    cdw13;
++    uint32_t    cdw14;
++    uint32_t    cdw15;
++} NvmeCmd;
++
++enum NvmeCtrlPrivCommands {
++    NVME_PRIV_CMD = 0xA5,
++    NVME_SPEC_CMD = 0x96, //command from specifications (admin or IO is based on the sqid)
++};
++
++enum NvmeCtrlPrivCmd {
++    NVME_PRIV_CMD_LINK_UP = 0xA6,
++    NVME_PRIV_CMD_LINK_DOWN,
++    NVME_PRIV_CMD_ENABLE,
++    NVME_PRIV_CMD_DISABLE,
++       
++    NVME_PRIV_CMD_DMA_DONE,
++    NVME_PRIV_CMD_DMA_ERROR,
++};
++   
++typedef struct NvmeCmd_res1 {
++    uint8_t cmd; //command type: internal, admin queue, IO queue
++    uint8_t priv; //private commands
++    uint16_t sqid; //submission queue id;
++    uint32_t res2;
++} NvmeCmd_res1;
++
++// completion queue *******************************************************************
++typedef struct NvmeCqe {
++    uint32_t    result;
++    uint32_t    rsvd;
++    uint16_t    sq_head;
++    uint16_t    sq_id;
++    uint16_t    cid;
++    uint16_t    status;
++} NvmeCqe;
++
++typedef struct NvmeCqe_rsvd {
++    uint8_t cmd; //command type: internal, admin queue, IO queue
++    uint8_t priv; //private command content
++    uint16_t rsvd; //future use
++} NvmeCqe_rsvd;
++    
++// DMA packets ************************************************************************
++#define DMA_FLAG_TO_HOST  (0x1 << 3)
++#define DMA_FLAG_TO_SSD   (0x1 << 4)
++#define DMA_FLAG_DIRECT   (0x1 << 5)
++#define DMA_FLAG_AUTO     (0x1 << 6)
++
++#define DMA_DATA_SIZE       4096
++
++/* packets do not include source but only destination */
++typedef struct DMAPacket {
++    uint64_t addr; // this is addr or prp1
++    uint64_t prp2; // this is prp2 when it exists
++    uint32_t offset4KB; // this is only used by the host
++    uint32_t slot;
++    uint32_t len;
++    uint32_t sequence;
++    uint32_t idx;
++    uint32_t flags;  //includes packet directions
++    char     data[]; //here goes the data
++} DMAPacket;
++
++
++
++//=============================================================================
++// INTERRUPTS (the following are platform specific)
++//=============================================================================
++
++#define DEV_IRQ_OFFSET 32
++#define DEV_IRQ_ASSERT_INTR 61    
++    
++//=============================================================================
++// COMMANDS
++//=============================================================================
++
++#define V2FCommand_NOP 0
++#define V2FCommand_Reset 1
++#define V2FCommand_SetFeatures 6
++#define V2FCommand_GetFeatures 46
++#define V2FCommand_ReadPageTrigger 13
++#define V2FCommand_ReadPageTransfer 18
++#define V2FCommand_ProgramPage 28
++#define V2FCommand_BlockErase 37
++#define V2FCommand_StatusCheck 41
++#define V2FCommand_ReadPageTransferRaw 55
++
++
++struct _NVMe_DEVState;
++
++
++typedef enum devRequest_state {
++    REQ_INIT =0,               // during initialization
++    REQ_NOT_IN_SRAM =1,        // only in linked list not in SRAM
++    REQ_WAITING_PUBLISH =2,    // in linked list and in SRAM but never published in the nvme_cmd_fifo_reg
++    REQ_WAITING_READ =3,       // in linked list, in SRAM, and currently in the nvme_cmd_fifo_reg
++    REQ_WAITING_COMPL =4,      // in linked list, in SRAM, and already read by the software from the nvme_cmd_fifo_reg
++} devRequest_state;
++const char * devRequest_state_char[] = {"init", "not_in_sram", "waiting_publish", "waiting_read", "waiting_compl"};
++
++//cmd queue data structure arriving from the host, they can be either ADM or IO (NVM)
++//all commands are going to be pushed on the SRAM in FIFO order
++typedef struct nvme_devRequest {
++    struct _NVMe_DEVState * state;
++
++    NvmeCmd         cmd;
++    uint16_t        status; //controller SRAM status for this command
++    uint16_t        slot;   //SRAM slot
++    uint32_t        qid;
++    QTAILQ_ENTRY(nvme_devRequest) entry;
++} nvme_devRequest;
++
++#define BITS_PER_UINT32 ( (sizeof(uint32_t) * 8) )
++#define MAX_CMD_SRAM_SLOTS 128
++#define MAX_CMD_SRAM_UINT32 ( (MAX_CMD_SRAM_SLOTS / BITS_PER_UINT32) )
++
++//=============================================================================
++// STATE
++//=============================================================================
++
++#define TYPE_NVME_DEV "nvme_dev"
++
++typedef struct _NVMe_DEVState {
++    /*< private >*/
++    SysBusDevice parent;
++
++    /*< public >*/
++    MemoryRegion mmio;
++    
++    /*< public >*/
++//    BlockAcctStats acct; //NOTE that a block already includes stats
++    CharBackend server_chr; /* the SSD is the server */
++    uint8_t server_state; // TODO before anything check if the connection is alive
++
++    CharBackend dma_chr; /* the SSD's DMA server */
++    uint8_t dma_state;  // TODO before anything check if the connection is alive
++    
++    /*
++    qemu_irq irq;
++    DeviceState *flash;
++    */
++    
++    // it can generate an IRQ to the CPU NVMe_ctrl->CPU
++    qemu_irq irq;
++    SysBusDevice * sbd;
++
++// START TODO    
++    uint8_t  manf_id, chip_id;
++    uint64_t physical_address;
++
++    //nvme_devRequest * io_req; //can be optimized by creating a free list
++    QTAILQ_HEAD(req_list, nvme_devRequest) req_list; // requests waiting for completion
++    uint32_t cmd_sram_head, cmd_sram_tail; //same empty and full philosophy of NVMe queues
++    uint32_t cmd_sram_bitmask[MAX_CMD_SRAM_UINT32]; // this is the bitmask to enable out of order slots releases
++    
++    //DMA support
++    uint32_t dma_pkt_idx; // current packet id for dma reconstruction
++
++// END TODO
++
++    /* HW registers */
++    uint32_t dev_irq_mask;
++    uint32_t dev_irq_reg;
++    uint32_t pcie_status_reg;
++    uint32_t pcie_func_reg;
++      
++    uint32_t nvme_status_reg;
++    uint32_t nvme_cmd_fifo_reg;
++    uint32_t nvme_admin_queue_set_reg;
++    
++    uint32_t nvme_cpl_fifo_reg[3];
++    uint32_t nvme_io_sq_set_reg[8][2]; // TODO this is a vector 
++    uint32_t nvme_io_cq_set_reg[8][2]; // TODO this is a vector
++    
++    uint32_t host_dma_fifo_cnt_reg;
++    uint32_t host_dma_cmd_fifo_reg[4];
++    
++    uint32_t nvme_cmd_sram[MAX_CMD_SRAM_SLOTS][16]; 
++} NVMe_DEVState;
++
++
++
++///////////////////////////////////////////////////////////////////////////////
++// CMD_SRAM and CMD_fifo handling runtimes
++///////////////////////////////////////////////////////////////////////////////
++static inline int cmd_sram_empty (NVMe_DEVState * s) {
++    return (s->cmd_sram_head == s->cmd_sram_tail);
++}
++static inline int cmd_sram_full (NVMe_DEVState * s) {
++    return ((s->cmd_sram_tail +1) % MAX_CMD_SRAM_SLOTS == s->cmd_sram_head);
++}
++/* returns a valid slot id (>= 0) if success
++ * -1 if error
++ */
++static inline int cmd_sram_enqueue (NVMe_DEVState * s, nvme_devRequest * req)
++{ 
++    int slot = -1;
++ 
++    // TODO take a lock on the sram
++    if ( !(cmd_sram_full(s)) ) {
++        slot = s->cmd_sram_tail;
++    
++        *(NvmeCmd *)&s->nvme_cmd_sram[slot] = req->cmd; 
++        s->cmd_sram_bitmask[(slot / BITS_PER_UINT32)] |= 0x1 << (slot % BITS_PER_UINT32);
++        s->cmd_sram_tail = (slot +1) % MAX_CMD_SRAM_SLOTS; // increment pointer
++    }
++    // TODO release a lock on the sram
++    
++    return slot;
++}
++/*    // TODO differently from the case above here it is not sure that req->slot that is dequeued is the one that 
++ *    is staying == to the head therefore the following code must be changed so that when you release you first release the bit in the bitmask and when it comes to update the head pointer you only act IIF head e lo stesso di quello che tu irlasci, additionallym quando rilasci devi controllare se ci sono altri bit a uno, in quel caso, fai il release di tutti
++ * 
++ * // returns the dequeued object <<< ? not sure
++ * returns the number of continuous released slots
++ */
++//static inline NvmeCmd * cmd_sram_dequeue (NVMe_DEVState * s, int slot)
++static inline int cmd_sram_dequeue (NVMe_DEVState * s, int slot)
++{ 
++    //NvmeCmd temp;
++    int slot_idx = slot / BITS_PER_UINT32;
++    int slot_bit = 0x1 << (slot % BITS_PER_UINT32);
++    int i = 0;
++    
++    //TODO take a lock on the sram
++    if ( (s->cmd_sram_bitmask[slot_idx / BITS_PER_UINT32] & 0x1 << (slot_bit % BITS_PER_UINT32)) ) {
++        // element exists
++        s->cmd_sram_bitmask[slot_idx / BITS_PER_UINT32] &= ~(0x1 << (slot_bit % BITS_PER_UINT32)); //remove from the bitmask
++        //temp = *((NvmeCmd *) &s->nvme_cmd_sram[slot]);
++        memset(&(s->nvme_cmd_sram[slot]), 0, 64); // put some MACRO INSTEAD of 64 TODO
++        //advance the head as much as possible
++        while ( (s->cmd_sram_bitmask[s->cmd_sram_head / BITS_PER_UINT32] & 0x1 << (s->cmd_sram_head % BITS_PER_UINT32)) &&
++                !cmd_sram_empty(s) ) { 
++            s->cmd_sram_head = (s->cmd_sram_head +1) % MAX_CMD_SRAM_SLOTS;
++            i++;
++        }
++    }
++    // TODO release a lock on the sram
++
++    return i; // cannot return the temp because it is allocated on the stack -- if needed we can change this later
++}
++
++#define ANY_VALUE (int)(~0)
++static inline nvme_devRequest * cmd_fifo_find (NVMe_DEVState * s, int slot, int status)
++{
++    nvme_devRequest *p = 0, *q = 0;
++    
++    QTAILQ_FOREACH_SAFE(p, &(s->req_list), entry, q) {
++        if ( (status == ANY_VALUE) && p->slot == slot )
++            return p;
++        if ( (slot == ANY_VALUE) && p->status == status )
++            return p;
++        if ( (status == p->status) && (slot == p->slot) )
++            return p;
++    }
++    
++    return 0;
++}
++
++///////////////////////////////////////////////////////////////////////////////
++// generic nvme runtimes
++///////////////////////////////////////////////////////////////////////////////
++
++static void nvme_dev_dump_cmd(struct NvmeCmd * cmd)
++{
++    if (cmd->res1)
++        qemu_log_mask(LOG_TRACE,
++            "SQ opc:0x%x fuse:%d psdt:%d cid:%d nsid:0x%x mptr:0x%lx prp1:0x%lx prp2:0x%lx res1 .cmd:%s .priv:0x%x .sqid:%d\n",
++            (unsigned int) cmd->opcode, (unsigned int) cmd->fuse & 0x3,
++            (unsigned int) (cmd->fuse >> 6) & 0x3,  (unsigned int) cmd->cid,
++            cmd->nsid, cmd->mptr, cmd->prp1, cmd->prp2,
++            ( ((NvmeCmd_res1 *) &(cmd->res1))->cmd == NVME_PRIV_CMD ) ? "PRIV" : "SPEC",
++            ((NvmeCmd_res1 *) &(cmd->res1))->priv, ((NvmeCmd_res1 *) &(cmd->res1))->sqid);
++    else
++        qemu_log_mask(LOG_TRACE,
++            "SQ opc:0x%x fuse:%d psdt:%d cid:%d nsid:0x%x mptr:0x%lx prp1:0x%lx prp2:0x%lx\n",
++            (unsigned int) cmd->opcode, (unsigned int) cmd->fuse & 0x3,
++            (unsigned int) (cmd->fuse >> 6) & 0x3,  (unsigned int) cmd->cid,
++            cmd->nsid, cmd->mptr, cmd->prp1, cmd->prp2);
++}
++
++static void nvme_dev_dump_cqe(struct NvmeCqe * cqe)
++{
++/*    if (cmd->res1)
++        qemu_log_mask(LOG_TRACE,
++            "opc:0x%x fuse:%d psdt:%d cid:%d nsid:0x%x mptr:0x%lx prp1:0x%lx prp2:0x%lx res1 .cmd:0x%x .priv:0x%x .sqid:%d\n",
++            (unsigned int) cmd->opcode, (unsigned int) cmd->fuse & 0x3,
++            (unsigned int) (cmd->fuse >> 6) & 0x3,  (unsigned int) cmd->cid,
++            cmd->nsid, cmd->mptr, cmd->prp1, cmd->prp2,
++            ((NvmeCmd_res1 *) &(cmd->res1))->cmd, ((NvmeCmd_res1 *) &(cmd->res1))->priv, ((NvmeCmd_res1 *) &(cmd->res1))->sqid);
++    else
++*/
++        qemu_log_mask(LOG_TRACE,
++            "CQ result:0x%x sq_head:%d sq_id:%d cid:%d status:0x%x\n",
++            cqe->result, (unsigned int)cqe->sq_head, (unsigned int) cqe->sq_id, 
++            (unsigned int) cqe->cid, (unsigned int)cqe->status);
++}
++
++///////////////////////////////////////////////////////////////////////////////
++// QEMU handling
++///////////////////////////////////////////////////////////////////////////////
++
++#define NVMe_DEV(obj) \
++    OBJECT_CHECK(NVMe_DEVState, obj, TYPE_NVME_DEV)
++
++// on this connection we only receive 64 bytes or the size of an NvmeCmd
++static int nvme_dev_can_receive(void *opaque)
++{
++    return sizeof(NvmeCmd); //64
++}
++
++static void nvme_dev_receive(void *opaque, const uint8_t *buf, int size)
++{   
++    NVMe_DEVState *s = opaque; 
++    NvmeCmd nvme_cmd;
++    memcpy((char *) &nvme_cmd, buf, size > 64 ? 64 : size);
++    
++    nvme_dev_dump_cmd(&nvme_cmd); //dump for debugging in the log
++
++    switch ( ((NvmeCmd_res1 *) &nvme_cmd.res1)->cmd ) {
++        case NVME_PRIV_CMD: {
++            NvmeCmd_res1 ncr1 = *((NvmeCmd_res1 *) &nvme_cmd.res1);
++            switch (ncr1.priv) {
++                case NVME_PRIV_CMD_LINK_UP:
++                    ((DEV_IRQ_REG *) &s->dev_irq_reg)->pcieLink = 1;
++                    ((PCIE_STATUS_REG *) &s->pcie_status_reg)->pcieLinkUp = 1;
++                    
++                    if ( ((DEV_IRQ_REG *)&s->dev_irq_mask)->pcieLink )
++                        qemu_set_irq(s->irq, 1);
++                    return;
++                case NVME_PRIV_CMD_LINK_DOWN:
++                    break;
++                case NVME_PRIV_CMD_ENABLE:
++                    ((DEV_IRQ_REG *) &s->dev_irq_reg)->nvmeCcEn = 1;
++                    ((NVME_STATUS_REG *) &s->nvme_status_reg)->ccEn = 1;
++                    
++                    if ( ((DEV_IRQ_REG *) &s->dev_irq_mask)->nvmeCcEn )
++                        qemu_set_irq(s->irq, 1);
++                    return;
++                case NVME_PRIV_CMD_DISABLE:
++                    break;                   
++                case NVME_PRIV_CMD_DMA_DONE: {
++                    //increment the DMA counter 
++                    ((HOST_DMA_FIFO_CNT_REG *) &(s->host_dma_fifo_cnt_reg))->autoDmaTx++;
++                        
++                    //now clean the slot (copied from the code in nvme_dev_mem_write() )
++                    //TODO refactoring
++
++/*****************************************************************************/
++                //remove the one that is signaled by the software
++                int cid =-1, sqId =-1, slot =-1;
++                nvme_devRequest * req = cmd_fifo_find(s, slot, ANY_VALUE);
++                if ( !req ) {
++                    qemu_log_mask(LOG_TRACE, "error, cannot find slot %d in cmd_fifo. restart is needed\n", slot);
++                    break;
++                }
++                if ( req->status != REQ_WAITING_COMPL )
++                    qemu_log_mask(LOG_TRACE, "error, the cmd_fifo status must be %d but it is %d\n", 
++                           REQ_WAITING_COMPL, req->status);
++                
++                cid = ((NvmeCmd *)&s->nvme_cmd_sram[slot])->cid;
++                sqId = ((NvmeCmd_res1 *) &(((NvmeCmd *)&s->nvme_cmd_sram[slot])->res1) )->sqid;
++                if ( (cid != req->cmd.cid) || (sqId != req->qid) )
++                    qemu_log_mask(LOG_TRACE, "error, CMD_SRAM info is different from CMD_FIFO info cid 0x%x 0x%x sqId 0x%x 0x%x\n",
++                            cid, req->cmd.cid, sqId, req->qid);
++                
++                cmd_sram_dequeue(s, slot); // remove from CMD_SRAM
++                QTAILQ_REMOVE(&(s->req_list), req, entry); // remove from CMD_FIFO
++                g_free(req); // delete allocated space
++
++                // enqueue the next one in SRAM
++                //search the next in the LIST and enqeue it
++                req = cmd_fifo_find(s, ANY_VALUE, REQ_NOT_IN_SRAM);
++                if (req) {
++                    int _slot;
++                    if ( ( _slot = cmd_sram_enqueue(s,req)) >= 0 ) {
++                        req->slot = _slot;
++                        req->status = REQ_WAITING_PUBLISH;
++                    }
++// TODO we should consider to write the following in a function/macro                
++                    if ( (req->status == REQ_WAITING_PUBLISH) && !(s->nvme_cmd_fifo_reg) ) {
++                        ((NVME_CMD_FIFO_REG *) &s->nvme_cmd_fifo_reg)->qID = req->qid;
++                        ((NVME_CMD_FIFO_REG *) &s->nvme_cmd_fifo_reg)->cmdSlotTag = req->slot;
++                        ((NVME_CMD_FIFO_REG *) &s->nvme_cmd_fifo_reg)->cmdSeqNum = req->cmd.cid; // ? this is not used in the firmware code!!!
++                        ((NVME_CMD_FIFO_REG *) &s->nvme_cmd_fifo_reg)->cmdValid = 1;
++                
++                        req->status = REQ_WAITING_READ;
++                    }
++                }
++                
++                //now construct the completion and send it
++                NvmeCqe completion;
++                completion.result = 0; //success
++                completion.sq_head = 0; // TODO ?
++                completion.sq_id = sqId;
++                completion.cid = cid;
++                completion.status = 0;
++                //construct the completion -- private fields 
++                ((NvmeCqe_rsvd *) &completion.rsvd)->cmd = NVME_SPEC_CMD;
++                
++                nvme_dev_dump_cqe(&completion);
++                qemu_chr_fe_write_all(&s->server_chr, (const uint8_t * )&completion, sizeof(NvmeCqe));
++/*****************************************************************************/
++                    
++                    break;
++                }
++                case NVME_PRIV_CMD_DMA_ERROR:
++                    break;                    
++                default:
++                    qemu_log_mask(LOG_TRACE, "command not supported yet PRIV\n");
++                    break;
++            }
++            break;
++        }
++        case NVME_SPEC_CMD: { // any command must be moved to the special SRAM area (no interrupt is generated)
++            /* DESIGN
++             * Let's queue these packets in this module, we cannot just put them in the SRAM 
++             * because there may be no space, thus a list to enqueue the items is required
++             */
++            int _slot;
++            nvme_devRequest * req = g_malloc0(sizeof(nvme_devRequest));
++            memcpy(&(req->cmd), &nvme_cmd, sizeof(NvmeCmd));
++            req->state = s;
++            req->qid = ((NvmeCmd_res1 *) &req->cmd.res1)->sqid; //req->cmd.res1 = 0; //TODO maybe this should be removed
++            req->status = REQ_INIT; req->slot =-1;
++            QTAILQ_INSERT_TAIL(&(s->req_list), req, entry);
++            
++            if ( ( _slot = cmd_sram_enqueue(s, req)) >= 0) {
++                req->slot = _slot;
++                req->status = REQ_WAITING_PUBLISH;
++            }
++            else 
++                req->status = REQ_NOT_IN_SRAM;
++            
++            if ( (req->status == REQ_WAITING_PUBLISH) && !(s->nvme_cmd_fifo_reg) ) {
++                ((NVME_CMD_FIFO_REG *) &s->nvme_cmd_fifo_reg)->qID = req->qid;
++                ((NVME_CMD_FIFO_REG *) &s->nvme_cmd_fifo_reg)->cmdSlotTag = req->slot;
++                ((NVME_CMD_FIFO_REG *) &s->nvme_cmd_fifo_reg)->cmdSeqNum = req->cmd.cid; // ? this is not used in the firmware code!!!
++                ((NVME_CMD_FIFO_REG *) &s->nvme_cmd_fifo_reg)->cmdValid = 1;
++                
++                req->status = REQ_WAITING_READ;
++            }
++            qemu_log_mask(LOG_TRACE, "submission command qid %d slot %d command %x status %s\n", 
++                    (int)req->qid, (int)req->slot, (unsigned int)req->cmd.opcode, devRequest_state_char[req->status] );
++            break;
++        }
++        default:
++            qemu_log_mask(LOG_TRACE, "command not supported jet\n");
++    }
++    
++    return;
++}
++
++static void nvme_dev_event(void *opaque, int event)
++{
++    //NVMe_DEVState *s = opaque;
++    
++    DPRINTF("event %x\n", event);
++/*    if (event == CHR_EVENT_BREAK)
++        serial_receive_break(s);*/
++}    
++
++
++/////////////////////////////////////////////// DMA ///////////////////////////////////////////////
++static int nvme_dev_can_receiveDMA(void *opaque)
++{
++    return (sizeof(DMAPacket) + DMA_DATA_SIZE);
++}
++
++static void nvme_dev_receiveDMA(void *opaque, const uint8_t *buf, int size)
++{   
++    //NVMe_DEVState *s = opaque; 
++    //memcpy((char *) &nvme_cmd, buf, size > 64 ? 64 : size);
++    
++    // TODO here we cannot do malloc everytime otherwise the performance will degrade tooooooooooo much
++    // we can maybe preallocate some buffers at the beginning ...
++    
++    return;
++}
++
++static void nvme_dev_eventDMA(void *opaque, int event)
++{
++    //NVMe_DEVState *s = opaque;
++    
++    DPRINTF("DMA event %x\n", event);
++}
++
++////////////////////////////////////////////////////////////////////////////////////////////
++// basic functions
++////////////////////////////////////////////////////////////////////////////////////////////
++
++/*
++ * this function returns the result of the read
++ */    
++static uint64_t
++nvme_dev_mem_read(void *opaque, hwaddr addr, unsigned size)
++{
++    uint32_t ret = 0;
++    NVMe_DEVState *s = NVMe_DEV(opaque); 
++
++    /* TODO the following can be avoided */
++    if ( (addr >= NVME_CMD_SRAM_ADDR) && (addr < NVME_DEV_SIZE) ) {
++        uint32_t *ptr = &(s->nvme_cmd_sram[0][0]);
++        ret = ptr[(addr - NVME_CMD_SRAM_ADDR)/sizeof(uint32_t)];
++        return ret;
++    }    
++    
++    /* SQ set registers array */
++    if ( (addr >= NVME_IO_SQ_SET_REG_ADDR) && (addr < NVME_IO_SQ_SET_REG_ADDR_END) ) {
++        uint32_t *ptr = &(s->nvme_io_sq_set_reg[0][0]);
++        ret = ptr[(addr - NVME_IO_SQ_SET_REG_ADDR)/sizeof(uint32_t)];
++        return ret;
++    }
++
++    /* CQ set registers array */
++    if ( (addr >= NVME_IO_CQ_SET_REG_ADDR) && (addr < NVME_IO_CQ_SET_REG_ADDR_END) ) {
++        uint32_t *ptr = &(s->nvme_io_cq_set_reg[0][0]);
++        ret = ptr[(addr - NVME_IO_CQ_SET_REG_ADDR)/sizeof(uint32_t)];
++        return ret;
++    }
++
++    switch (addr) {
++        case DEV_IRQ_MASK_REG_ADDR: 
++            //TODO this is a write instruction only, cannot be handled here, no action
++            break;
++        case DEV_IRQ_CLEAR_REG_ADDR:
++            //TODO this is a write instruction only, cannot be handled here, no action
++            break;
++        case DEV_IRQ_STATUS_REG_ADDR:
++            ret = s->dev_irq_reg;
++            break;
++        case PCIE_STATUS_REG_ADDR:
++            ret = s->pcie_status_reg;
++            break;
++        case PCIE_FUNC_REG_ADDR:
++            ret = s->pcie_func_reg;
++            break;
++        case NVME_STATUS_REG_ADDR:
++            ret = s->nvme_status_reg;
++            break;
++        case NVME_CMD_FIFO_REG_ADDR: {
++            nvme_devRequest * req;
++            int slot = ((NVME_CMD_FIFO_REG *) &s->nvme_cmd_fifo_reg)->cmdSlotTag;
++            int qid = ((NVME_CMD_FIFO_REG *) &s->nvme_cmd_fifo_reg)->qID;
++            
++            // save the value to be returned
++            ret = s->nvme_cmd_fifo_reg;
++            if (!ret) // in case the register is clear just return
++                break;
++            
++            // find the one currently published in CMD_FIFO, change its state to REQ_WAITING_COMPL
++            req = cmd_fifo_find(s, slot, REQ_WAITING_READ);
++            if ( !req || 
++                 (req->qid !=  qid) ) {
++                    DPRINTF(
++                        "ERROR, cannot find slot %d in cmd_fifo. restart is needed\n", slot);
++                    break;
++            }
++            // we have the element, we can now clear the register and change the status of the CMD_FIFO entry
++            s->nvme_cmd_fifo_reg = 0; // needed for the check later
++            req->status = REQ_WAITING_COMPL;
++            
++            // find another cmd to be published 
++            // Note that considering we are not removing anything from the SRAM
++            // we are not trying to add any new entry on the CMD_SRAM
++            req = cmd_fifo_find(s, ANY_VALUE, REQ_WAITING_PUBLISH);           
++            if ( req && !(s->nvme_cmd_fifo_reg) ) {
++                ((NVME_CMD_FIFO_REG *) &s->nvme_cmd_fifo_reg)->qID = req->qid;
++                ((NVME_CMD_FIFO_REG *) &s->nvme_cmd_fifo_reg)->cmdSlotTag = req->slot;
++                ((NVME_CMD_FIFO_REG *) &s->nvme_cmd_fifo_reg)->cmdSeqNum = req->cmd.cid; // ? this is not used in the firmware code!!!
++                ((NVME_CMD_FIFO_REG *) &s->nvme_cmd_fifo_reg)->cmdValid = 1;
++                
++                req->status = REQ_WAITING_READ;
++            }
++            
++            break;
++        }
++        case NVME_ADMIN_QUEUE_SET_REG_ADDR:
++            ret = s->nvme_admin_queue_set_reg;
++            break;
++            
++        case NVME_CPL_FIFO_REG_ADDR0:
++            ret = s->nvme_cpl_fifo_reg[0];
++            break;
++        case NVME_CPL_FIFO_REG_ADDR1:
++            ret = s->nvme_cpl_fifo_reg[1];
++            break;
++        case NVME_CPL_FIFO_REG_ADDR2:
++            ret = s->nvme_cpl_fifo_reg[2];
++            break;
++
++        case HOST_DMA_FIFO_CNT_REG_ADDR:
++            ret = s->host_dma_fifo_cnt_reg;
++            break;
++            
++        case HOST_DMA_CMD_FIFO_REG_ADDR0:
++            ret = s->host_dma_cmd_fifo_reg[0];
++            break;
++        case HOST_DMA_CMD_FIFO_REG_ADDR1:
++            ret = s->host_dma_cmd_fifo_reg[1];
++            break;
++        case HOST_DMA_CMD_FIFO_REG_ADDR2:
++            ret = s->host_dma_cmd_fifo_reg[2];
++            break;
++        case HOST_DMA_CMD_FIFO_REG_ADDR3:
++            ret = s->host_dma_cmd_fifo_reg[3];
++            break;
++ 
++        default:
++            qemu_log_mask(LOG_GUEST_ERROR,
++            //qemu_log_mask(LOG_TRACE,
++                //"nvme_dev_mem_read: undefined memory address@hidden %" HWADDR_PRId "\n", addr);
++                "nvme_dev_mem_read: undefined memory address@hidden %x\n", (unsigned int)addr);
++        break;
++    }
++
++    return ret;        
++}    
++
++/*
++ * this function just writes
++ */    
++static void
++nvme_dev_mem_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
++{
++    NVMe_DEVState *s = NVMe_DEV(opaque);
++    
++    /* TODO the following can be avoided */
++    if ( (addr >= NVME_CMD_SRAM_ADDR) && (addr < NVME_DEV_SIZE) ) {
++        uint32_t *ptr = &(s->nvme_cmd_sram[0][0]);
++        ptr[(addr - NVME_CMD_SRAM_ADDR)/sizeof(uint32_t)] = (uint32_t) val;
++        return;
++    }
++    
++    /* SQ set registers array */
++    if ( (addr >= NVME_IO_SQ_SET_REG_ADDR) && (addr < NVME_IO_SQ_SET_REG_ADDR_END) ) {
++        uint32_t *ptr = &(s->nvme_io_sq_set_reg[0][0]);
++        ptr[(addr - NVME_IO_SQ_SET_REG_ADDR)/sizeof(uint32_t)] = (uint32_t) val;
++        if ((addr & 4)) {
++            // TODO trigger command
++        /*	nvmeReg.valid = valid;
++	nvmeReg.cqVector = cqVector;
++	nvmeReg.sqSize = qSzie;
++	nvmeReg.pcieBaseAddrL = pcieBaseAddrL;
++	nvmeReg.pcieBaseAddrH = pcieBaseAddrH;
++*/  
++        }
++        return;
++    }
++
++    /* CQ set registers array */
++    if ( (addr >= NVME_IO_CQ_SET_REG_ADDR) && (addr < NVME_IO_CQ_SET_REG_ADDR_END) ) {
++        uint32_t *ptr = &(s->nvme_io_cq_set_reg[0][0]);
++        ptr[(addr - NVME_IO_SQ_SET_REG_ADDR)/sizeof(uint32_t)] = (uint32_t) val;
++        if ((addr & 4)) {
++            // TODO trigger command
++        /*	nvmeReg.valid = valid;
++	nvmeReg.cqVector = cqVector;
++	nvmeReg.sqSize = qSzie;
++	nvmeReg.pcieBaseAddrL = pcieBaseAddrL;
++	nvmeReg.pcieBaseAddrH = pcieBaseAddrH;
++*/  
++        }
++        return;
++    }
++
++    switch (addr) {
++        case DEV_IRQ_MASK_REG_ADDR: 
++            s->dev_irq_mask |= (uint32_t) val;
++            DPRINTF("nvme_dev_mem_write IRQ_MASK val 0x%x reg 0x%x\n", (unsigned int)val, s->dev_irq_reg);
++            break;
++        case DEV_IRQ_CLEAR_REG_ADDR:
++            s->dev_irq_reg &= (uint32_t) ~val;
++            DPRINTF("nvme_dev_mem_write IRQ_CLEAR val 0x%x reg 0x%x\n", (unsigned int)val, s->dev_irq_reg);
++            
++            if ( !(s->dev_irq_reg) ) //if there are no other interrupts pending clear the irq line
++                qemu_set_irq(s->irq, 0);
++            break;
++        case DEV_IRQ_STATUS_REG_ADDR:
++            //TODO this is a read instruction only, cannot be handled here, no action
++            break;
++        case PCIE_STATUS_REG_ADDR:
++            s->pcie_status_reg = (uint32_t) val;
++            break;
++        case PCIE_FUNC_REG_ADDR:
++            s->pcie_func_reg = (uint32_t) val;
++            break;
++        case NVME_STATUS_REG_ADDR: {
++            //uint32_t tmp = 0; // TODO
++/*	nvmeReg.cstsRdy = rdy;
++	nvmeReg.cstsShst = shst;
++        */  
++            //tmp = s->nvme_status_reg;
++            s->nvme_status_reg = (uint32_t) val;
++            //if (tmp != val) ACT, otherwise maybe just a trigger? TODO TODO DECISION: do the action anyway
++                
++            break;
++        }
++        case NVME_CMD_FIFO_REG_ADDR:
++            s->nvme_cmd_fifo_reg = (uint32_t) val;
++            break;
++        case NVME_ADMIN_QUEUE_SET_REG_ADDR:
++/*	nvmeReg.sqValid = sqValid;
++	nvmeReg.cqValid = cqValid;
++	nvmeReg.cqIrqEn = cqIrqEn;
++        */
++            s->nvme_admin_queue_set_reg = (uint32_t) val;
++            break;
++            
++        case NVME_CPL_FIFO_REG_ADDR0:
++            s->nvme_cpl_fifo_reg[0] = (uint32_t) val;
++            break;
++        case NVME_CPL_FIFO_REG_ADDR1:
++            s->nvme_cpl_fifo_reg[1] = (uint32_t) val;
++            break;
++        case NVME_CPL_FIFO_REG_ADDR2: {
++            int cid =-1, sqId =-1, slot =-1;
++            NVME_CPL_FIFO_REG cpl_fifo_reg;
++            
++            s->nvme_cpl_fifo_reg[2] = (uint32_t) val;
++            cpl_fifo_reg = *(NVME_CPL_FIFO_REG *) &s->nvme_cpl_fifo_reg;
++            slot = cpl_fifo_reg.cmdSlotTag;
++
++            qemu_log_mask(LOG_TRACE, "COMPLETION for slot %d\n", slot);
++            
++            // in the follofing IF the software only specify the slot, the rest is available in the nvme_cmd_sram entry
++            if (cpl_fifo_reg.cplType == AUTO_CPL_TYPE ||
++                cpl_fifo_reg.cplType == CMD_SLOT_RELEASE_TYPE) {
++                // just remove the entry from the SDRAM but also from the list of elements
++                
++                //remove the one that is signaled by the software
++                nvme_devRequest * req = cmd_fifo_find(s, slot, ANY_VALUE);
++                if ( !req ) {
++                    qemu_log_mask(LOG_TRACE, "error, cannot find slot %d in cmd_fifo. restart is needed\n", slot);
++                    break;
++                }
++                
++                if ( req->status != REQ_WAITING_COMPL )
++                    qemu_log_mask(LOG_TRACE, "error, the cmd_fifo status must be %d but it is %d\n", 
++                           REQ_WAITING_COMPL, req->status);
++                
++                cid = ((NvmeCmd *)&s->nvme_cmd_sram[slot])->cid;
++                sqId = ((NvmeCmd_res1 *) &(((NvmeCmd *)&s->nvme_cmd_sram[slot])->res1) )->sqid;
++                if ( (cid != req->cmd.cid) || (sqId != req->qid) )
++                    qemu_log_mask(LOG_TRACE, "error, CMD_SRAM info is different from CMD_FIFO info cid 0x%x 0x%x sqId 0x%x 0x%x\n",
++                            cid, req->cmd.cid, sqId, req->qid);
++                
++                cmd_sram_dequeue(s, slot); // remove from CMD_SRAM
++                QTAILQ_REMOVE(&(s->req_list), req, entry); // remove from CMD_FIFO
++                g_free(req); // delete allocated space
++
++                // enqueue the next one in SRAM
++                //search the next in the LIST and enqeue it
++                req = cmd_fifo_find(s, ANY_VALUE, REQ_NOT_IN_SRAM);
++                if (req) {
++                    int _slot;
++                    if ( ( _slot = cmd_sram_enqueue(s,req)) >= 0 ) {
++                        req->slot = _slot;
++                        req->status = REQ_WAITING_PUBLISH;
++                    }
++// TODO we should consider to write the following in a function/macro                
++                    if ( (req->status == REQ_WAITING_PUBLISH) && !(s->nvme_cmd_fifo_reg) ) {
++                        ((NVME_CMD_FIFO_REG *) &s->nvme_cmd_fifo_reg)->qID = req->qid;
++                        ((NVME_CMD_FIFO_REG *) &s->nvme_cmd_fifo_reg)->cmdSlotTag = req->slot;
++                        ((NVME_CMD_FIFO_REG *) &s->nvme_cmd_fifo_reg)->cmdSeqNum = req->cmd.cid; // ? this is not used in the firmware code!!!
++                        ((NVME_CMD_FIFO_REG *) &s->nvme_cmd_fifo_reg)->cmdValid = 1;
++                
++                        req->status = REQ_WAITING_READ;
++                    }
++                }
++            }
++            
++            // here send a completion based on the data submitted or recovered
++            if (cpl_fifo_reg.cplType == AUTO_CPL_TYPE ||
++                cpl_fifo_reg.cplType == ONLY_CPL_TYPE) {
++                NvmeCqe completion;
++                
++                // just send a completion
++                if (cid == -1)
++                    cid = cpl_fifo_reg.cid;
++                if (sqId == -1)
++                    sqId = cpl_fifo_reg.sqId;
++                
++                //construct the completion -- standard fields
++                completion.result = cpl_fifo_reg.specific;
++                completion.sq_head = 0; // TODO
++                completion.sq_id = sqId;
++                completion.cid = cid;
++                completion.status = cpl_fifo_reg.statusFieldWord;
++                //construct the completion -- private fields 
++                ((NvmeCqe_rsvd *) &completion.rsvd)->cmd = NVME_SPEC_CMD;
++                
++                nvme_dev_dump_cqe(&completion);
++                qemu_chr_fe_write_all(&s->server_chr, (const uint8_t * )&completion, sizeof(NvmeCqe));
++            }
++
++            break;
++        }
++        case HOST_DMA_FIFO_CNT_REG_ADDR:
++            //TODO this is used only in read -> no action
++            //s->host_dma_fifo_cnt_reg[0] = (uint32_t) val;
++            break;
++            
++        case HOST_DMA_CMD_FIFO_REG_ADDR0:
++            s->host_dma_cmd_fifo_reg[0] = (uint32_t) val;
++            break;
++        case HOST_DMA_CMD_FIFO_REG_ADDR1:
++            s->host_dma_cmd_fifo_reg[1] = (uint32_t) val;
++            break;
++        case HOST_DMA_CMD_FIFO_REG_ADDR2:
++            s->host_dma_cmd_fifo_reg[2] = (uint32_t) val;
++            break;
++        case HOST_DMA_CMD_FIFO_REG_ADDR3: {
++            s->host_dma_cmd_fifo_reg[3] = (uint32_t) val;
++            
++            uint32_t packets =0;
++            HOST_DMA_CMD_FIFO_REG cmd_fifo = *(HOST_DMA_CMD_FIFO_REG *) &(s->host_dma_cmd_fifo_reg[0]);
++            DMAPacket * pkt = g_malloc0(sizeof(DMAPacket) + DMA_DATA_SIZE);
++            int i;
++            
++            if (cmd_fifo.dmaType == HOST_DMA_DIRECT_TYPE) {
++                pkt->len = cmd_fifo.dmaLen;
++                pkt->flags = DMA_FLAG_DIRECT;
++                pkt->sequence = 0;
++                
++                switch (cmd_fifo.dmaDirection) {
++                    case HOST_DMA_RX_DIRECTION: {
++                        pkt->flags |= DMA_FLAG_TO_SSD;
++                        pkt->addr = (uint64_t)cmd_fifo.devAddr;
++                        
++                        // this must be sent to the HOST driver has a cq packet if possible
++
++                        DPRINTF("DIRECT TYPE RX direction is not implemented yet\n");
++                        break;
++                    }
++                    case HOST_DMA_TX_DIRECTION: {                       
++                        pkt->flags |= DMA_FLAG_TO_HOST;
++                        pkt->addr = (uint64_t) cmd_fifo.pcieAddrH << 32 | (uint64_t) cmd_fifo.pcieAddrL ;
++                        
++                        // this must be sent to the HOST has a DMA packet with data included
++                        
++                        // get new packet id from the state
++                        pkt->idx = s->dma_pkt_idx++;
++                        // how many packets need to be sent
++                        packets =  cmd_fifo.dmaLen / DMA_DATA_SIZE + (cmd_fifo.dmaLen % DMA_DATA_SIZE) ? 1 : 0;
++                        // send the packets in a loop
++                        for (i=0; i < packets; i++) {
++                            cpu_physical_memory_read(cmd_fifo.devAddr + (i*DMA_DATA_SIZE), //hwaddr
++                                                     pkt->data, //qemu addr
++                                                     (i+1 == packets) ? cmd_fifo.dmaLen : DMA_DATA_SIZE); //buffer, len
++                            qemu_chr_fe_write_all(&s->dma_chr, 
++                                                  (const uint8_t * )pkt, (sizeof(DMAPacket) + DMA_DATA_SIZE) );
++                            pkt->sequence++;
++                        }
++                        // free resources
++                        g_free(pkt);
++                        
++                        ((HOST_DMA_FIFO_CNT_REG *) &(s->host_dma_fifo_cnt_reg))->directDmaTx++;
++                        
++                        DPRINTF("DIRECT TYPE TX done with trasmission len %d DmaTx %x\n",
++                                (unsigned int)cmd_fifo.dmaLen, s->host_dma_fifo_cnt_reg);
++                        
++                        break;
++                    }
++                }
++            }
++            // the following exploits the fact that the PRP is in the host memory and it will not be removed until we are done processing this
++            else if (cmd_fifo.dmaType == HOST_DMA_AUTO_TYPE) {
++                nvme_devRequest * req;
++                
++                // need to find the associated CMD in the SRAM before proceeding
++                req = cmd_fifo_find(s, cmd_fifo.cmdSlotTag, ANY_VALUE);
++                if ( !req ) {
++                    DPRINTF("AUTO TYPE cannot continue processing slot %d not found in cmd_fifo\n", 
++                            cmd_fifo.cmdSlotTag);
++                    return;
++                }
++                if ( req->status == REQ_INIT || req->status == REQ_NOT_IN_SRAM || 
++                req->status == REQ_WAITING_PUBLISH || req->status == REQ_WAITING_READ ) {
++                    DPRINTF("AUTO TYPE warning nvme_devRequest status is wrong (%d)\n", 
++                            req->status);
++                    //return;
++                }
++
++                pkt->len = cmd_fifo.dmaLen; 
++                pkt->sequence = 0;
++                pkt->flags = DMA_FLAG_AUTO;
++                
++                switch (cmd_fifo.dmaDirection) {
++                    case HOST_DMA_RX_DIRECTION: {
++                        pkt->flags |= DMA_FLAG_TO_SSD;
++                        pkt->addr = (uint64_t)cmd_fifo.devAddr;
++                        
++                        // this must be sent to the HOST driver has a cq packet if possible
++
++                        DPRINTF("AUTO TYPE RX direction is not implemented yet\n");
++                        break;
++                    }
++                    case HOST_DMA_TX_DIRECTION: {                       
++                        pkt->flags |= DMA_FLAG_TO_HOST;
++                        pkt->addr = req->cmd.prp1; // THIS IS THE PRP address in physical host memory
++                        pkt->prp2 = req->cmd.prp2;
++                        pkt->offset4KB = cmd_fifo.cmd4KBOffset;
++                        
++                        // this must be sent to the HOST has a DMA packet with data included
++                                                
++                        // get new packet id from the state
++                        pkt->idx = s->dma_pkt_idx++;
++                        // how many packets need to be sent
++                        packets =  cmd_fifo.dmaLen / DMA_DATA_SIZE + (cmd_fifo.dmaLen % DMA_DATA_SIZE) ? 1 : 0;
++                        // send the packets in a loop
++                        for (i=0; i < packets; i++) {
++                            cpu_physical_memory_read(cmd_fifo.devAddr + (i*DMA_DATA_SIZE), //hwaddr
++                                                     pkt->data, DMA_DATA_SIZE); //buffer, len
++                            qemu_chr_fe_write_all(&s->dma_chr, 
++                                                  (const uint8_t * )pkt, (sizeof(DMAPacket) + DMA_DATA_SIZE) );
++                            pkt->sequence++;
++                        }
++                        // free resources
++                        g_free(pkt);
++                        
++                        ((HOST_DMA_FIFO_CNT_REG *) &(s->host_dma_fifo_cnt_reg))->autoDmaTx++;
++                        
++                        DPRINTF("AUTO TYPE TX done with trasmission len %d DmaTx %x\n",
++                                (unsigned int)cmd_fifo.dmaLen, s->host_dma_fifo_cnt_reg);                
++                        break;
++                    }
++                }
++            }
++            else {
++                DPRINTF("unknown DMA type\n");
++                break;
++            }            
++
++// TODO finish this by using a thread as well
++
++/*	hostDmaReg.devAddr = devAddr;
++	hostDmaReg.pcieAddrL = pcieAddrL;
++	hostDmaReg.pcieAddrH = pcieAddrH;
++	
++	hostDmaReg.dword[3] = 0;
++	hostDmaReg.dmaType = HOST_DMA_DIRECT_TYPE;
++	hostDmaReg.dmaDirection = HOST_DMA_TX_DIRECTION;
++	hostDmaReg.dmaLen = len;
++        
++        
++        hostDmaReg.devAddr = devAddr;
++	hostDmaReg.pcieAddrH = pcieAddrH;
++	hostDmaReg.pcieAddrL = pcieAddrL;
++
++	hostDmaReg.dword[3] = 0;
++	hostDmaReg.dmaType = HOST_DMA_DIRECT_TYPE;
++	hostDmaReg.dmaDirection = HOST_DMA_RX_DIRECTION;
++	hostDmaReg.dmaLen = len;
++        */           
++            
++
++            break;
++        }
++        default:
++            qemu_log_mask(LOG_GUEST_ERROR,
++            //qemu_log_mask(LOG_TRACE,
++                //"nvme_dev_mem_read: undefined memory address@hidden %" HWADDR_PRId "\n", addr);
++                "nvme_dev_mem_read: undefined memory address@hidden %x\n", (unsigned int)addr);
++        break;
++    }
++}
++    
++    
++static const MemoryRegionOps mmio_ops = {
++    .read  = nvme_dev_mem_read,
++    .write = nvme_dev_mem_write,
++    .endianness = DEVICE_LITTLE_ENDIAN, //DEVICE_NATIVE_ENDIAN
++    .valid = {
++        .min_access_size = 4,
++        .max_access_size = 4
++    }
++};
++    
++static void nvme_dev_reset(DeviceState *ds)
++{
++    NVMe_DEVState *s = NVMe_DEV(SYS_BUS_DEVICE(ds));
++/*    Error *local_errp = NULL;
++
++    s->flash = DEVICE(object_property_get_link(OBJECT(s),
++                                               "flash",
++                                               &local_errp));
++    if (local_errp) {
++        fprintf(stderr, "ftnandc021: Unable to get flash link\n");
++        abort();
++    }
++    */
++
++    s->dma_pkt_idx = 0;
++
++    s->dev_irq_mask = 0;
++    s->dev_irq_reg = 0;
++    s->pcie_status_reg = 0;
++    s->pcie_func_reg = 0;
++      
++    s->nvme_status_reg = 0;
++    s->nvme_cmd_fifo_reg = 0;
++    s->nvme_admin_queue_set_reg = 0;
++    
++    s->nvme_cpl_fifo_reg[0] = 0; s->nvme_cpl_fifo_reg[1] = 0; s->nvme_cpl_fifo_reg[2] = 0;
++    memset(&(s->nvme_io_sq_set_reg), 0, sizeof(s->nvme_io_sq_set_reg));
++    memset(&(s->nvme_io_cq_set_reg), 0, sizeof(s->nvme_io_cq_set_reg));
++    
++    s->host_dma_fifo_cnt_reg = 0;
++    s->host_dma_cmd_fifo_reg[0] = 0; s->host_dma_cmd_fifo_reg[1] = 0; 
++    s->host_dma_cmd_fifo_reg[1] = 0; s->host_dma_cmd_fifo_reg[3] = 0;
++    
++    memset(&(s->nvme_cmd_sram), 0, sizeof(s->nvme_cmd_sram));
++    
++    /* We can assume our GPIO outputs have been wired up now */
++    qemu_set_irq(s->irq, 0);
++
++    QTAILQ_INIT(&s->req_list);
++    s->cmd_sram_head = s->cmd_sram_tail = 0;
++}
++
++static void nvme_dev_realize(DeviceState *dev, Error **errp)
++{
++    //Error *local_err =NULL;
++    NVMe_DEVState *s = NVMe_DEV(dev);
++    Chardev *chr = qemu_chr_fe_get_driver(&s->server_chr);
++    Chardev *dma_chr = qemu_chr_fe_get_driver(&s->dma_chr);
++
++    if ( !chr ) {
++        error_setg(errp, "nvme_dev_realize: Can't create nvme_dev ctrl, empty char device");
++        return;
++    }
++    if ( !dma_chr ) {
++        error_setg(errp, "nvme_dev_realize: Can't create nvme_dev ctrl, empty char device for DMA");
++        return;
++    }
++    
++    sysbus_init_mmio(s->sbd, &s->mmio);
++    sysbus_mmio_map(s->sbd, 0, s->physical_address);   
++
++        qemu_log_mask(LOG_TRACE,
++                "nvme_dev_realize: mmio mapped\n");
++    
++    /*
++    sysbus_init_irq(sbd, &s->irq); // from cadence_uart --calls-> qdev_init_gpio_out_named()
++    
++    qdev_init_gpio_in(&sbd->qdev, ftnandc021_handle_ack, 1); // from ftnandc021
++    qdev_init_gpio_out(&sbd->qdev, &s->req, 1);              // from ftnandc021
++    
++    Depending on the fact that we know which interrupt to use or not the code changes,
++    for current purposes it is not necessary to create and wire a gpio with a irq
++    beacuse the qemu_irq has been already created by the cpu/platform code.
++    More work is needed to make this more generic
++    */
++    // need to create my irq here first
++    sysbus_init_irq(s->sbd, &s->irq);
++    
++    // now try to fetch CPU object to attach the IRQ
++    BusState * default_bus = sysbus_get_default();
++    DeviceState * cpu_dev = qdev_find_recursive(default_bus, "a9mpcore_priv");
++    if ( !cpu_dev ) {
++        error_setg(errp, "nvme_dev_realize: cannot find cpu object %p %p", default_bus, cpu_dev);
++        return;
++    }
++    // this is copied by xilinx_zynq.c initialization -- basically connect the cpu interrupt with the NVMe ctrl interrupt
++    qemu_irq cpu_irq = qdev_get_gpio_in(cpu_dev, (DEV_IRQ_ASSERT_INTR - DEV_IRQ_OFFSET));
++    sysbus_connect_irq(s->sbd, 0, cpu_irq);
++    
++    /*
++     * build the servers so that clients can connects
++     */
++    // chr frontend handlers for the nvme server
++    qemu_chr_fe_set_handlers(&s->server_chr, nvme_dev_can_receive, nvme_dev_receive, nvme_dev_event, 
++                             s, NULL, true);
++    qemu_chr_fe_set_open(&s->server_chr, 1); // not sure this is necessary
++    // chr frontend handlers for the DMA
++    qemu_chr_fe_set_handlers(&s->dma_chr, nvme_dev_can_receiveDMA, nvme_dev_receiveDMA, nvme_dev_eventDMA, 
++                             s, NULL, true);
++    qemu_chr_fe_set_open(&s->dma_chr, 1); // not sure this is necessary
++    
++    qemu_log_mask(LOG_TRACE,
++                "nvme_dev_realize: s %lx phys 0x%lx notifier %s\n",
++                (unsigned long) s, (unsigned long)s->physical_address, chr->filename);
++}
++
++static const VMStateDescription vmstate_nvme_dev = {
++    .name = TYPE_NVME_DEV,
++    .version_id = 1,
++    .minimum_version_id = 1,
++    .minimum_version_id_old = 1,
++    .fields = (VMStateField[]) {
++        VMSTATE_UINT32(dev_irq_mask, NVMe_DEVState),
++        VMSTATE_UINT32(dev_irq_reg, NVMe_DEVState),
++        VMSTATE_UINT32(pcie_status_reg, NVMe_DEVState),
++        VMSTATE_UINT32(pcie_func_reg, NVMe_DEVState),
++        VMSTATE_UINT32(nvme_status_reg, NVMe_DEVState),
++        VMSTATE_UINT32(nvme_cmd_fifo_reg, NVMe_DEVState),
++        VMSTATE_UINT32(nvme_admin_queue_set_reg, NVMe_DEVState),
++        VMSTATE_UINT32(host_dma_fifo_cnt_reg, NVMe_DEVState),
++    
++        VMSTATE_UINT32_ARRAY(nvme_cpl_fifo_reg, NVMe_DEVState, 3),
++        VMSTATE_UINT32_2DARRAY(nvme_io_sq_set_reg, NVMe_DEVState, 8, 2),
++        VMSTATE_UINT32_2DARRAY(nvme_io_cq_set_reg, NVMe_DEVState, 8, 2),
++        VMSTATE_UINT32_ARRAY(host_dma_cmd_fifo_reg, NVMe_DEVState, 4),
++        VMSTATE_UINT32_2DARRAY(nvme_cmd_sram, NVMe_DEVState, 128, 16),
++        VMSTATE_END_OF_LIST()
++    }
++};    
++
++static void nvme_dev_instance_init(Object *obj)
++{
++    NVMe_DEVState *s = NVMe_DEV(obj);
++/* THIS IS TO LINK WITH THE FLASH DEVICES -- WE DON'T USE THIS FOR NOW
++    object_property_add_link(obj,
++                             "flash",
++                             TYPE_DEVICE,
++                             (Object **) &s->flash,
++                             NULL);
++                             */
++
++    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
++    s->sbd =sbd;
++    
++    memory_region_init_io(&s->mmio,
++                          obj,
++                          &mmio_ops,
++                          s,
++                          TYPE_NVME_DEV,
++                          NVME_DEV_SIZE);
++}
++    
++/* TODO finish this */
++static Property nvme_dev_properties[] = {
++    DEFINE_PROP_CHR("chardev", NVMe_DEVState, server_chr),
++    DEFINE_PROP_CHR("dmadev", NVMe_DEVState, dma_chr),
++    DEFINE_PROP_UINT64("phys", NVMe_DEVState, physical_address, NVME_HOST_IP_ADDR),
++    DEFINE_PROP_END_OF_LIST(),
++};
++
++static void nvme_dev_class_init(ObjectClass *klass, void *data)
++{
++    DeviceClass *dc = DEVICE_CLASS(klass);
++
++    dc->vmsd    = &vmstate_nvme_dev;
++    dc->reset   = nvme_dev_reset;
++    dc->realize = nvme_dev_realize;
++    dc->props = nvme_dev_properties;
++    dc->hotpluggable = true;
++    dc->user_creatable = true;
++    //dc->no_user = 1;
++}
++
++static const TypeInfo nvme_dev_info = {
++    .name          = TYPE_NVME_DEV,
++    .parent        = TYPE_SYS_BUS_DEVICE,
++    .instance_size = sizeof(NVMe_DEVState),
++    .instance_init = nvme_dev_instance_init,
++    .class_init    = nvme_dev_class_init,
++};
++
++static void nvme_dev_register_types(void)
++{
++    type_register_static(&nvme_dev_info);
++}
++
++type_init(nvme_dev_register_types)
+diff --git a/hw/arm/tiger4nsc.c b/hw/arm/tiger4nsc.c
+new file mode 100644
+index 0000000..3bd9514
+--- /dev/null
++++ b/hw/arm/tiger4nsc.c
+@@ -0,0 +1,816 @@
++/*
++ * Antonio Barbalace,  2017
++ *
++ * Most of this file originates from the fmc_driver source code of Cosmos+
++ */
++
++/**
++ * Usage: add options:
++ *      -drive file=<file>,if=none,id=<drive_id> 
++ *      -device tiger4nsc,drive=<drive_id>,ways=8,
++ *
++ */
++
++/*#include "hw/sysbus.h"
++#include "hw/devices.h"
++#include "hw/flash.h"
++#include "sysemu/blockdev.h"
++*/
++
++#include "qemu/osdep.h"
++#include "qapi/error.h"
++#include "qemu-common.h"
++#include "qemu/log.h"
++#include "qemu/error-report.h"
++
++#include "hw/qdev.h"
++#include "hw/block/block.h"
++#include "hw/hw.h"
++#include "hw/sysbus.h"
++//#include "hw/block/flash.h"
++//#include "qapi/error.h"
++//#include "qapi/visitor.h"
++#include "sysemu/sysemu.h"
++#include "sysemu/block-backend.h"
++#include "sysemu/dma.h"
++
++/* configurable options */
++
++#define	WAY_NUM					8
++
++/* fixed options */
++
++// NOTE: there is a device controller per channel -- thus, this is not a configuration option
++/*
++#define	CHANNEL_NUM				2
++#define	MAX_CHANNEL_NUM	                        8
++*/
++
++#define	MAX_WAY_NUM				8
++//#define	DIE_NUM					(CHANNEL_NUM * WAY_NUM)
++
++#define V2Fmmio_SIZE 0x10000
++#define V2Fmmio_ADDR 0x43c00000
++
++//ECC error information
++#define ERROR_INFO_NUM 11
++
++#define	SECTOR_SIZE_FTL 4096	//4KB
++//#define	PAGE_SIZE       16384	//16KB
++#define	PAGE_SIZE       (16384/2)
++#define SPARE_SIZE      256	//last 8 bytes are CRC bytes
++
++#define	SLC_MODE				1
++#define	MLC_MODE				2
++#define	BIT_PER_FLASH_CELL		SLC_MODE //select SLC_MODE or MLC_MODE
++
++#define	PAGE_NUM_PER_BLOCK		(128 * BIT_PER_FLASH_CELL)
++#define	PAGE_NUM_PER_SLC_BLOCK	128
++#define	PAGE_NUM_PER_MLC_BLOCK	256
++
++#define	BLOCK_NUM_PER_LUN		512 //DRAM size doesn't enough for page mapping when MLC mode uses all blocks. If you want to use all blocks, map cache function should be implemented.
++#define	MAX_BLOCK_NUM_PER_LUN	4096
++#define LUN_NUM_PER_DIE			2
++#define	MAX_LUN_NUM_PER_DIE		2
++#define	BLOCK_SIZE_MB			((PAGE_SIZE * PAGE_NUM_PER_BLOCK) / (1024 * 1024))
++
++//LUN
++#define LUN_0_BASE_ADDR	0x00000000
++#define LUN_1_BASE_ADDR	0x00200000
++
++static inline unsigned int rowAddress_get_linear(unsigned int phy_RowAddress) {
++    unsigned int rowAddress = (phy_RowAddress < LUN_1_BASE_ADDR) ? 0 : ((128 / BIT_PER_FLASH_CELL) * BLOCK_NUM_PER_LUN);
++    if (rowAddress)
++        phy_RowAddress -= LUN_1_BASE_ADDR;
++
++// in the hope that everything will be configurable in the future    
++    if (BIT_PER_FLASH_CELL == SLC_MODE) {
++        unsigned int tempPage; //, _tempPage;
++        unsigned int tempBlock;
++        
++        if ((phy_RowAddress & (2* PAGE_NUM_PER_BLOCK -1)) == (2* PAGE_NUM_PER_BLOCK -1)) {// this supports LLSCommand_ReadRawPage, LLSCommand_ReadLsbPage, LLSCommand_WriteLsbPage
++            tempPage = (PAGE_NUM_PER_BLOCK -1);
++            tempBlock = phy_RowAddress - (2* PAGE_NUM_PER_BLOCK -1);
++            
++/*            _tempPage = ((phy_RowAddress % 2) ? ((phy_RowAddress +1) >> 1) % PAGE_NUM_PER_BLOCK : 0);
++            qemu_log_mask(LOG_TRACE,
++                "get_linear: addr %x tmpPage %x tmpBlock %x OR %x %x (%x)\n", 
++                phy_RowAddress, tempPage, tempBlock,
++                _tempPage, phy_RowAddress - ((_tempPage == 0)? 0 : ((_tempPage * 2) -1)), phy_RowAddress - ((_tempPage * 2) -1) ); */
++        }
++        else {
++            tempPage = (phy_RowAddress % 2) ? 
++                                ((phy_RowAddress +1) >> 1) % PAGE_NUM_PER_BLOCK : 0;
++            tempBlock = phy_RowAddress - ((tempPage == 0)? 0 : ((tempPage * 2) -1));
++        }
++        
++        tempBlock = tempBlock /2;
++        rowAddress += tempPage + tempBlock;
++        
++    }
++    else if (BIT_PER_FLASH_CELL == MLC_MODE) {
++        rowAddress += phy_RowAddress;
++    }
++        
++    return rowAddress;
++}
++
++typedef struct
++{
++	unsigned int cmdSelect;    //addr 0
++	unsigned int rowAddress;   //addr 4
++	unsigned int userData;     //addr 8
++	unsigned int dataAddress;  //addr 12
++        
++	unsigned int spareAddress; //addr 16 (0x10)
++	unsigned int errorCountAddress; //addr 20
++	unsigned int completionAddress; //addr 24
++	unsigned int waySelection; //addr 28
++        
++	unsigned int channelBusy;  //addr 32 (0x20)
++	unsigned int readyBusy;    //addr 36
++} V2FMCRegisters;
++
++//offsets
++#define OFFSET_cmdSelect 0
++#define OFFSET_rowAddress 4 
++#define OFFSET_userData 8
++#define OFFSET_dataAddress 12
++#define OFFSET_spareAddress 16 
++#define OFFSET_errorCountAddress 20
++#define OFFSET_completionAddress 24
++#define OFFSET_waySelection 28
++
++#define OFFSET_channelBusy 32
++//there is a ready bit per way
++#define OFFSET_readyBusy 36
++
++//commands
++#define V2FCommand_NOP 0
++#define V2FCommand_Reset 1
++#define V2FCommand_SetFeatures 6
++#define V2FCommand_GetFeatures 46
++#define V2FCommand_ReadPageTrigger 13
++#define V2FCommand_ReadPageTransfer 18
++#define V2FCommand_ProgramPage 28
++#define V2FCommand_BlockErase 37
++#define V2FCommand_StatusCheck 41
++#define V2FCommand_ReadPageTransferRaw 55
++
++struct _Tiger4nscState;
++
++typedef struct tiger4nscRequest {
++    struct _Tiger4nscState * state;
++    BlockAcctCookie cookie;
++
++    BlockAIOCB*     aiocb;
++    uint32_t        cmdSelect;
++    uint32_t        rowAddress;
++    uint32_t        waySelection;
++    uint32_t        completionAddress;
++    uint32_t        errorCountAddress;   
++
++    void*           erased_block;
++    
++    uint32_t        has_qsg;
++    QEMUSGList      qsg;
++    QEMUIOVector    iov;
++    QTAILQ_ENTRY(tiger4nscRequest) entry;
++} tiger4nscRequest;
++
++
++#define TYPE_TIGER4NSC "tiger4nsc"
++
++typedef struct _Tiger4nscState {
++    /*< private >*/
++    SysBusDevice parent;
++
++    /*< private >*/
++    BlockConf conf;
++    
++    /*< public >*/
++    MemoryRegion mmio;
++    
++    /*< public >*/
++//    BlockAcctStats acct; //NOTE that a block already includes stats
++    
++    /*
++    qemu_irq irq;
++    DeviceState *flash;
++
++    // DMA hardware handshake
++    qemu_irq req;
++    */
++    SysBusDevice * sbd;
++
++// START TODO    
++    uint8_t  manf_id, chip_id;
++    uint64_t physical_address;
++
++    
++    //Rem that channels is not an option as one controller is one channel
++    uint8_t ways;
++    uint64_t spare_size;
++    
++    uint64_t page_size;
++    uint64_t page_num_per_block;
++    
++    uint64_t lun_num_per_die;
++    
++    uint64_t block_size;
++    uint64_t block_num_per_lun;
++    uint64_t block_num_per_die;
++    uint64_t block_num_per_channel;
++    uint64_t total_size;
++    uint64_t  disk_size;
++    
++    //tiger4nscRequest * io_req; //can be optimized by creating a free list
++    QTAILQ_HEAD(req_list, tiger4nscRequest) req_list; // requests waiting for completion
++
++// END TODO
++
++    /* HW register caches */
++    uint32_t cmdSelect;
++    uint32_t rowAddress;
++    uint32_t userData;
++    uint32_t dataAddress;
++    uint32_t spareAddress;
++    uint32_t errorCountAddress;
++    uint32_t completionAddress;
++    uint32_t waySelection;
++    uint32_t channelBusy;
++    uint32_t readyBusy;    
++} Tiger4nscState;
++
++#define TIGER4NSC(obj) \
++    OBJECT_CHECK(Tiger4nscState, obj, TYPE_TIGER4NSC)
++
++static void tiger4nsc_completion(void *opaque, int ret)    
++{
++    tiger4nscRequest *req = opaque;
++    Tiger4nscState *s = req->state;
++    
++    //Note that this is writing up to 11bytes of ECC of some other kind of error check struct errorInfoArray
++    uint32_t error[ERROR_INFO_NUM] = {~0x00, ~0x00}; // 0xffffffff means no error
++    uint32_t completion = 0x1; // status completed
++    completion |= 0x60 << 1; // done
++    
++    if (ret <0) { // case of failure
++        completion |= 0x03 << 1; // failure
++        block_acct_failed(blk_get_stats(s->conf.blk), &req->cookie); //statistics
++    }
++    else { // case of everything went well
++        block_acct_done(blk_get_stats(s->conf.blk), &req->cookie); //statistics
++    }
++    
++    QTAILQ_REMOVE(&(s->req_list), req, entry);
++    
++    switch (req->cmdSelect) {
++        case V2FCommand_ReadPageTransferRaw:
++        case V2FCommand_ReadPageTransfer:
++        case V2FCommand_ProgramPage: {
++            cpu_physical_memory_write(req->completionAddress, &completion, sizeof(completion));
++            if ( (req->cmdSelect == V2FCommand_ReadPageTransfer) ||
++                 (req->cmdSelect == V2FCommand_ProgramPage) )
++                cpu_physical_memory_write(req->errorCountAddress, error, sizeof(error));
++    
++            if (req->has_qsg)
++                qemu_sglist_destroy(&(req->qsg));
++            
++            qemu_log_mask(LOG_TRACE,
++                "tiger4nsc_completion: %lx Read/Program ret %d comp @ %lx error @ %lx\n", 
++                s->physical_address, ret, (long unsigned )req->completionAddress, (long unsigned)req->errorCountAddress);
++            break;
++        }
++        case V2FCommand_BlockErase: {
++            if (!(req->has_qsg))
++                qemu_iovec_destroy(&(req->iov));
++            if (req->erased_block)
++                g_free(req->erased_block);
++
++            // TODO how to handle the error ??? because we cannot write anywhere with the erase command ...
++            
++            qemu_log_mask(LOG_TRACE,
++                "tiger4nsc_completion: %lx Erase ret %d comp @ %lx error @ %lx way %d @ 0x%x req@%lx\n", 
++                s->physical_address, ret, (long unsigned )req->completionAddress, (long unsigned)req->errorCountAddress, (unsigned) req->waySelection, (unsigned) req->rowAddress, (unsigned long)req);
++            break;
++        }
++        default:
++            qemu_log_mask(LOG_TRACE,
++                "tiger4nsc_completion: %lx ILLEGAL COMMAND %d\n", 
++                s->physical_address, req->cmdSelect);
++    }
++    
++    g_free(req);
++}    
++    
++static void tiger4nsc_command(Tiger4nscState *s, uint32_t cmd)
++{
++    int file_align = 1;
++
++    switch (cmd) {
++        /* StatusCheck command
++         * completionAddress register contains the physical address on which to write the status
++         * the completion status is an integer
++         * 
++         * NOT CLEAR: what does this mean when there is no active command?
++         */
++        case V2FCommand_StatusCheck: {
++            tiger4nscRequest *p = 0, *q = 0;
++            uint32_t completion =0;
++            int stats =0, found =0;
++            
++            //completion |= 0x03 << 1; // failure -- there cannot be any failure here
++           
++           //the algorithm is the following: I can find anything on the list with the same completion address I either don't do anything or write just 0x1
++            //I cannot find anything on the list, in that case I write completion done
++            
++            QTAILQ_FOREACH_SAFE(p, &(s->req_list), entry, q) {
++                if ( (p->waySelection == s->waySelection) &&
++                     (p->cmdSelect == V2FCommand_BlockErase) ) {
++                            completion = 0x1; // status completed
++                            cpu_physical_memory_write(s->completionAddress, &completion, sizeof(completion));
++                            found++;
++                    break;
++                }
++                
++                if ( (p->completionAddress == s->completionAddress) &&
++                     (p->waySelection == s->waySelection) ) {
++                            found++;
++                    break;
++                }
++                stats++;
++            }
++            
++            if (found == 0) {
++                    completion = 0x1; // status completed
++                    completion |= 0x60 << 1; // done
++                    cpu_physical_memory_write(s->completionAddress, &completion, sizeof(completion));
++            }                
++            
++            qemu_log_mask(LOG_TRACE,
++                "tiger4nsc_command: %lx StatusCheck rowAddr %x (%x) userData %x dataAddr %x spareAddr %x waySel %x completion %x (0x%x) stats %d\n", 
++                s->physical_address, s->rowAddress, (int)rowAddress_get_linear(s->rowAddress),
++                s->userData, s->dataAddress, s->spareAddress, s->waySelection, s->completionAddress, completion, stats);
++
++            break;
++        }
++        /* ReadPageTransfer command
++         * OUTPUTs
++         * completionAddress reguster contains the physical address on which to write the status
++         * the completion status is an integer (unit32_t)
++         * the errorInfo is also an integer (uint32_t)
++         * NEED TO WRITE THE PAGE IN dataAddress PAGE_SIZE 16384 //16KB
++         * NEED TO WRITE THE PAGE IN spareDataAddress SPARE_SIZE 256
++         * INPUTs
++         * way
++         * rowAddress
++         * pageDataBuffer -> dataAddress
++         * spareDataBuffer -> spareDataAddress
++         */        
++        case V2FCommand_ReadPageTransferRaw:
++        case V2FCommand_ReadPageTransfer: {
++            tiger4nscRequest * req = g_malloc0(sizeof(tiger4nscRequest));
++            long file_offset = 0;
++            //enum BlockAcctType acct = is_write ? BLOCK_ACCT_WRITE : BLOCK_ACCT_READ;
++
++            memset(req, 0, sizeof(tiger4nscRequest));
++            req->state = s;
++            req->cmdSelect = cmd; //supports ReadPageTransfer and ReadPageTransferRaw
++            req->completionAddress = s->completionAddress;
++            req->errorCountAddress = (cmd == V2FCommand_ReadPageTransfer) ? s->errorCountAddress : ~0;
++            req->waySelection = s->waySelection;
++            QTAILQ_INSERT_TAIL(&(s->req_list), req, entry); //enqueue in the list of completions
++            
++            qemu_sglist_init(&(req->qsg), DEVICE(s), 2, &address_space_memory); // rem to destroy this TODO TODO TODO            
++            if (cmd == V2FCommand_ReadPageTransfer) {
++                qemu_sglist_add(&(req->qsg), s->dataAddress, PAGE_SIZE); //data
++                qemu_sglist_add(&(req->qsg), s->spareAddress, SPARE_SIZE); //spare
++            }
++            else {
++               qemu_sglist_add(&(req->qsg), s->dataAddress, (PAGE_SIZE + SPARE_SIZE) ); //data + spare
++            }
++            req->has_qsg =1;
++            dma_acct_start(s->conf.blk, &(req->cookie), &(req->qsg), BLOCK_ACCT_READ);
++            
++            file_offset = rowAddress_get_linear(s->rowAddress) * (PAGE_SIZE + SPARE_SIZE) * s->waySelection;
++          
++            req->aiocb = dma_blk_read(s->conf.blk, &(req->qsg), 
++                         file_offset, file_align, 
++                         tiger4nsc_completion, req); //opaque is a void pointer
++            
++            //qemu_log_mask(LOG_GUEST_ERROR,
++            qemu_log_mask(LOG_TRACE,
++                "tiger4nsc_command: %lx %s rowAddr %x (%x) userData %x dataAddr %x spareAddr %x waySel %x  completion %x\n", 
++                s->physical_address, 
++                (cmd == V2FCommand_ReadPageTransfer) ? "ReadPageTransfer" : (cmd == V2FCommand_ReadPageTransferRaw) ? "ReadPageTransferRaw" : "ReadPageTransferXXX",
++                s->rowAddress, (int)rowAddress_get_linear(s->rowAddress),
++                s->userData, s->dataAddress, s->spareAddress, s->waySelection, s->completionAddress);           
++            
++            break;
++        }
++        case V2FCommand_ProgramPage:{
++            tiger4nscRequest * req = g_malloc0(sizeof(tiger4nscRequest));
++            long file_offset = 0; 
++
++            memset(req, 0, sizeof(tiger4nscRequest));
++            req->state = s;
++            req->cmdSelect = V2FCommand_ProgramPage;
++            req->completionAddress = s->completionAddress;
++            req->errorCountAddress = s->errorCountAddress;
++            req->waySelection = s->waySelection;
++            QTAILQ_INSERT_TAIL(&(s->req_list), req, entry); //enqueue in the list of completions
++            
++            qemu_sglist_init(&(req->qsg), DEVICE(s), 2, &address_space_memory); // rem to destroy this TODO TODO TODO            
++            qemu_sglist_add(&(req->qsg), s->dataAddress, PAGE_SIZE); //data
++            qemu_sglist_add(&(req->qsg), s->spareAddress, SPARE_SIZE); //spare
++            req->has_qsg =1;
++            dma_acct_start(s->conf.blk, &(req->cookie), &(req->qsg), BLOCK_ACCT_WRITE);
++            
++            file_offset = rowAddress_get_linear(s->rowAddress) * (PAGE_SIZE + SPARE_SIZE) * s->waySelection;
++            
++            req->aiocb = dma_blk_write(s->conf.blk, &(req->qsg), 
++                         file_offset, file_align, 
++                         tiger4nsc_completion, req); //opaque is a void pointer          
++            
++            //qemu_log_mask(LOG_GUEST_ERROR,
++            qemu_log_mask(LOG_TRACE,
++                "tiger4nsc_command: %lx ProgramPage rowAddr %x (%x) userData %x dataAddr %x spareAddr %x waySel %x completion %x\n", 
++                s->physical_address, s->rowAddress, (int)rowAddress_get_linear(s->rowAddress),
++                s->userData, s->dataAddress, s->spareAddress, s->waySelection, s->completionAddress);           
++            
++            break;
++        }   
++        
++        /*
++         * there is no dataAddress or spareAddress passed to this command, no completion either ...
++         * ONLY 
++         *  -- way
++         *  -- rowAddress
++         */
++        case V2FCommand_BlockErase:{
++            tiger4nscRequest * req = g_malloc0(sizeof(tiger4nscRequest));
++            
++            void * erased_block = g_malloc0(PAGE_SIZE + SPARE_SIZE); // move this as a global or per instance variable
++            long file_offset = 0; size_t size = 0; //, _size=0;
++            int i;
++            
++            if (erased_block)
++                memset(erased_block, (~0), (PAGE_SIZE + SPARE_SIZE)); // TODO ERASE THIS IN THE COMPLETION
++
++            req->erased_block = erased_block;
++
++            memset(req, 0, sizeof(tiger4nscRequest));
++            req->state = s;
++            req->cmdSelect = V2FCommand_BlockErase;
++            req->completionAddress = ~0;
++            req->errorCountAddress = ~0;
++            req->waySelection = s->waySelection;
++            QTAILQ_INSERT_TAIL(&(s->req_list), req, entry); //enqueue in the list of completions
++
++            //CREATE AN IOVEC list this is because we only know host address -- again, for performance this can be created once at init and being used at runtime multiple times 
++            qemu_iovec_init(&(req->iov), PAGE_NUM_PER_BLOCK);
++            for (i=0; i< PAGE_NUM_PER_BLOCK; i++)
++                qemu_iovec_add(&(req->iov), erased_block, (PAGE_SIZE + SPARE_SIZE));
++            // for the same reason accounting cannot be done with the dma_* APIs
++            block_acct_start(blk_get_stats(s->conf.blk), &(req->cookie),
++                           size = iov_size((req->iov.iov), PAGE_NUM_PER_BLOCK), BLOCK_ACCT_WRITE);
++                            //_size = req->iov.size;
++            
++            file_offset = rowAddress_get_linear(s->rowAddress) * (PAGE_SIZE + SPARE_SIZE) * s->waySelection;
++            req->rowAddress = file_offset;
++            
++            req->aiocb = blk_aio_pwritev(s->conf.blk, file_offset, &(req->iov), 0, tiger4nsc_completion, req);           
++            
++            qemu_log_mask(LOG_TRACE,
++                "tiger4nsc_command: %lx BlockErase rowAddr %x (%x) userData %x??? dataAddr %x??? spareAddr %x??? waySel %x completion %x??? (size: %ld) req@%lx\n", 
++                s->physical_address, s->rowAddress, (int)rowAddress_get_linear(s->rowAddress),
++                s->userData, s->dataAddress, s->spareAddress, s->waySelection, s->completionAddress, (unsigned long) size, (unsigned long) req);
++            break;
++        }
++        /*case V2FCommand_NOP: {
++            //qemu_log_mask(LOG_GUEST_ERROR,
++            qemu_log_mask(LOG_TRACE,
++                "tiger4nsc_command: %lx NOP rowAddr %x (%x) userData %x dataAddr %x spareAddr %x waySel %x ERROR\n", 
++                s->physical_address, s->rowAddress, (int)rowAddress_get_linear(s->rowAddress),
++                s->userData, s->dataAddress, s->spareAddress, s->waySelection);           
++            break;
++        }
++        case V2FCommand_Reset: {
++            //qemu_log_mask(LOG_GUEST_ERROR,
++            qemu_log_mask(LOG_TRACE,
++                "tiger4nsc_command: %lx Reset rowAddr %x (%x) userData %x dataAddr %x spareAddr %x waySel %x ERROR\n", 
++                s->physical_address, s->rowAddress, (int)rowAddress_get_linear(s->rowAddress),
++                s->userData, s->dataAddress, s->spareAddress, s->waySelection);           
++            break;
++        }
++        case V2FCommand_SetFeatures: {
++            //qemu_log_mask(LOG_GUEST_ERROR,
++            qemu_log_mask(LOG_TRACE,
++                "tiger4nsc_command: %lx SetFeatures rowAddr %x (%x) userData %x dataAddr %x spareAddr %x waySel %x ERROR\n", 
++                s->physical_address, s->rowAddress, (int)rowAddress_get_linear(s->rowAddress),
++                s->userData, s->dataAddress, s->spareAddress, s->waySelection);           
++            break;
++        }
++        case V2FCommand_GetFeatures: {
++            //qemu_log_mask(LOG_GUEST_ERROR,
++            qemu_log_mask(LOG_TRACE,
++                "tiger4nsc_command: %lx GetFeatures rowAddr %x (%x) userData %x dataAddr %x spareAddr %x waySel %x ERROR\n", 
++                s->physical_address, s->rowAddress, (int)rowAddress_get_linear(s->rowAddress),
++                s->userData, s->dataAddress, s->spareAddress, s->waySelection);           
++            break;
++        }
++        case V2FCommand_ReadPageTrigger: {
++            //qemu_log_mask(LOG_GUEST_ERROR,
++            qemu_log_mask(LOG_TRACE,
++                "tiger4nsc_command: %lx ReadPageTrigger rowAddr %x (%x) userData %x dataAddr %x spareAddr %x waySel %x ERROR\n", 
++                s->physical_address, s->rowAddress, (int)rowAddress_get_linear(s->rowAddress),
++                s->userData, s->dataAddress, s->spareAddress, s->waySelection);           
++            break;
++        }*/
++        case V2FCommand_NOP:
++        case V2FCommand_Reset:
++        case V2FCommand_SetFeatures:
++        case V2FCommand_GetFeatures:
++        case V2FCommand_ReadPageTrigger:
++        default:
++            qemu_log_mask(LOG_GUEST_ERROR,
++            //qemu_log_mask(LOG_TRACE,
++                "tiger4nsc_command: undefined command %x ERROR\n", (unsigned int)cmd);    
++        break;
++    }
++}
++    
++/*
++ * this function returns the result of the read
++ */    
++static uint64_t
++tiger4nsc_mem_read(void *opaque, hwaddr addr, unsigned size)
++{
++    uint32_t ret = 0;
++    Tiger4nscState *s = TIGER4NSC(opaque); 
++
++    switch (addr) {
++        case OFFSET_cmdSelect: 
++            ret = s->cmdSelect;
++            break;                                    
++        case OFFSET_rowAddress:
++            ret = s->rowAddress;
++            break;                                    
++        case OFFSET_userData:
++            ret = s->userData;
++            break;                                    
++        case OFFSET_dataAddress:
++            ret = s->dataAddress;
++            break;                                    
++        case OFFSET_spareAddress:
++            ret = s->spareAddress;
++            break;                                    
++        case OFFSET_errorCountAddress:
++            ret = s->errorCountAddress;
++            break;                                    
++        case OFFSET_completionAddress:
++            ret = s->completionAddress;
++            break;                                    
++        case OFFSET_waySelection:
++            ret = s->waySelection;
++            break;                        
++        case OFFSET_channelBusy:
++            ret = s->channelBusy;
++            break;                        
++        case OFFSET_readyBusy:
++            ret = s->readyBusy;
++            break;            
++        default:
++            qemu_log_mask(LOG_GUEST_ERROR,
++            //qemu_log_mask(LOG_TRACE,
++                //"tiger4nsc_mem_read: undefined memory address@hidden %" HWADDR_PRId "\n", addr);
++                "tiger4nsc_mem_read: undefined memory address@hidden %x\n", (unsigned int)addr);
++        break;
++    }
++
++    return ret;        
++}    
++
++/*
++ * this function just writes
++ */    
++static void
++tiger4nsc_mem_write(void *opaque, hwaddr addr, uint64_t val, unsigned size)
++{
++    //uint32_t i;
++    Tiger4nscState *s = TIGER4NSC(opaque);
++
++    switch (addr) {
++        case OFFSET_cmdSelect: 
++            s->cmdSelect = (uint32_t)val;
++            tiger4nsc_command(s, val);
++            break;
++        case OFFSET_rowAddress:
++            s->rowAddress = (uint32_t)val;
++            break;
++        case OFFSET_userData:
++            s->userData = (uint32_t)val;
++            break;
++        case OFFSET_dataAddress:
++            s->dataAddress = (uint32_t)val;
++            break;
++        case OFFSET_spareAddress:
++            s->spareAddress = (uint32_t)val;
++            break;
++        case OFFSET_errorCountAddress:
++            s->errorCountAddress = (uint32_t)val;
++            break;
++        case OFFSET_completionAddress:
++            s->completionAddress = (uint32_t)val;
++            break;
++        case OFFSET_waySelection:
++            s->waySelection = (uint32_t)val;
++            break;
++//these two in principle cannot be written            
++        case OFFSET_channelBusy:
++            //s->rowAddress = (uint32_t)val);
++            break;
++        case OFFSET_readyBusy:
++            //s->readyBusy = (uint32_t)val;
++            break;
++        default:
++            qemu_log_mask(LOG_GUEST_ERROR,
++            //qemu_log_mask(LOG_TRACE,
++                //"tiger4nsc_mem_read: undefined memory address@hidden %" HWADDR_PRId "\n", addr);
++                "tiger4nsc_mem_read: undefined memory address@hidden %x\n", (unsigned int)addr);
++        break;
++    }
++}
++    
++    
++static const MemoryRegionOps mmio_ops = {
++    .read  = tiger4nsc_mem_read,
++    .write = tiger4nsc_mem_write,
++    .endianness = DEVICE_LITTLE_ENDIAN, //DEVICE_NATIVE_ENDIAN
++    .valid = {
++        .min_access_size = 4,
++        .max_access_size = 4
++    }
++};
++    
++static void tiger4nsc_reset(DeviceState *ds)
++{
++    Tiger4nscState *s = TIGER4NSC(SYS_BUS_DEVICE(ds));
++/*    Error *local_errp = NULL;
++
++    s->flash = DEVICE(object_property_get_link(OBJECT(s),
++                                               "flash",
++                                               &local_errp));
++    if (local_errp) {
++        fprintf(stderr, "ftnandc021: Unable to get flash link\n");
++        abort();
++    }
++    */
++// not sure that those number are valid for every device
++    s->spare_size = SPARE_SIZE; //in bytes
++
++    s->page_size = PAGE_SIZE; //in bytes
++    s->page_num_per_block = 128 * BIT_PER_FLASH_CELL;
++    //s->page_num_per_lun = (s->page_num_per_block * s->block_num_per_lun);
++    
++    s->block_size = (s->page_size * s->page_num_per_block);
++    s->block_num_per_lun = (BLOCK_NUM_PER_LUN / BIT_PER_FLASH_CELL);
++
++    s->lun_num_per_die = LUN_NUM_PER_DIE;
++    
++    s->block_num_per_die = (s->block_num_per_lun * s->lun_num_per_die);
++    s->block_num_per_channel = (s->block_num_per_die * s->ways);
++    
++    s->total_size = (s->block_num_per_channel * s->block_size);
++    
++    s->disk_size = (s->block_num_per_channel * 
++                    ((s->page_size + s->spare_size) * s->page_num_per_block) ); 
++
++    qemu_log_mask(LOG_TRACE,
++                "tiger4nsc_reset: object at %lx size: %ld MB (%ld MB)\n",
++                (unsigned long)(void*)ds, (s->total_size >> 20), (s->disk_size >> 20) );   
++    qemu_log_mask(LOG_TRACE,
++                "tiger4nsc_reset: page_num_per_block: %ld block_num_per_lun:%ld block_num_per_die:%ld block_num_per_channel:%ld \n",
++                s->page_num_per_block, s->block_num_per_lun, s->block_num_per_die, s->block_num_per_channel);   
++
++    s->cmdSelect = 0;
++    s->rowAddress = 0;
++    s->userData = 0;
++    s->dataAddress = 0;
++    s->spareAddress = 0;
++    s->errorCountAddress = 0;
++    s->completionAddress = 0;
++    s->waySelection = 0;
++    s->channelBusy = 0; //one controller is one channel
++    s->readyBusy = ~0; //one controller has multiple ways
++    
++    /* We can assume our GPIO outputs have been wired up now */
++//    qemu_set_irq(s->req, 0);
++    QTAILQ_INIT(&s->req_list);
++}
++
++static void tiger4nsc_realize(DeviceState *dev, Error **errp)
++{
++    Error *local_err =NULL;
++    Tiger4nscState *s = TIGER4NSC(dev);
++
++    sysbus_init_mmio(s->sbd, &s->mmio);
++//    sysbus_init_irq(sbd, &s->irq);
++    sysbus_mmio_map(s->sbd, 0, s->physical_address);   
++
++    /*
++    qdev_init_gpio_in(&sbd->qdev, ftnandc021_handle_ack, 1);
++    qdev_init_gpio_out(&sbd->qdev, &s->req, 1);
++    */
++    
++    qemu_log_mask(LOG_TRACE,
++                "tiger4nsc_realize: s %lx phys 0x%lx ways %d\n",
++                (unsigned long) s, (unsigned long)s->physical_address, (unsigned int) s->ways );   
++    
++    blkconf_apply_backend_options(&s->conf, blk_is_read_only(s->conf.blk),
++                                  false, &local_err);
++    if (local_err) {
++        error_report_err(local_err);
++    }
++
++}
++
++static const VMStateDescription vmstate_tiger4nsc = {
++    .name = TYPE_TIGER4NSC,
++    .version_id = 1,
++    .minimum_version_id = 1,
++    .minimum_version_id_old = 1,
++    .fields = (VMStateField[]) {
++        VMSTATE_UINT32(cmdSelect, Tiger4nscState),
++        VMSTATE_UINT32(rowAddress, Tiger4nscState),
++        VMSTATE_UINT32(userData, Tiger4nscState),
++        VMSTATE_UINT32(dataAddress, Tiger4nscState),
++        VMSTATE_UINT32(spareAddress, Tiger4nscState),
++        VMSTATE_UINT32(errorCountAddress, Tiger4nscState),
++        VMSTATE_UINT32(completionAddress, Tiger4nscState),
++        VMSTATE_UINT32(waySelection, Tiger4nscState),
++        VMSTATE_UINT32(channelBusy, Tiger4nscState),
++        VMSTATE_UINT32(readyBusy, Tiger4nscState),
++        VMSTATE_END_OF_LIST()
++    }
++};    
++
++static void tiger4nsc_instance_init(Object *obj)
++{
++    Tiger4nscState *s = TIGER4NSC(obj);
++/* THIS IS TO LINK WITH THE FLASH DEVICES -- WE DON'T USE THIS FOR NOW
++    object_property_add_link(obj,
++                             "flash",
++                             TYPE_DEVICE,
++                             (Object **) &s->flash,
++                             NULL);
++                             */
++
++    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
++    s->sbd =sbd;
++    
++    memory_region_init_io(&s->mmio,
++                          obj,
++                          &mmio_ops,
++                          s,
++                          TYPE_TIGER4NSC,
++                          V2Fmmio_SIZE);
++}
++    
++static Property tiger4nsc_properties[] = {
++    DEFINE_BLOCK_PROPERTIES(Tiger4nscState, conf),        
++    DEFINE_PROP_UINT8("ways", Tiger4nscState, ways, WAY_NUM),
++    DEFINE_PROP_UINT64("phys", Tiger4nscState, physical_address, V2Fmmio_ADDR),
++/*    DEFINE_PROP_STRING("serial", NvmeCtrl, serial),
++    DEFINE_PROP_DRIVE("drive", Tiger4nscState, blk), */
++    DEFINE_PROP_END_OF_LIST(),
++};
++
++static void tiger4nsc_class_init(ObjectClass *klass, void *data)
++{
++    DeviceClass *dc = DEVICE_CLASS(klass);
++
++    dc->vmsd    = &vmstate_tiger4nsc;
++    dc->reset   = tiger4nsc_reset;
++    dc->realize = tiger4nsc_realize;
++    dc->props = tiger4nsc_properties;
++    dc->hotpluggable = true;
++    dc->user_creatable = true;
++    //dc->no_user = 1;
++}
++
++static const TypeInfo tiger4nsc_info = {
++    .name          = TYPE_TIGER4NSC,
++    .parent        = TYPE_SYS_BUS_DEVICE,
++    .instance_size = sizeof(Tiger4nscState),
++    .instance_init = tiger4nsc_instance_init,
++    .class_init    = tiger4nsc_class_init,
++};
++
++static void tiger4nsc_register_types(void)
++{
++    type_register_static(&tiger4nsc_info);
++}
++
++type_init(tiger4nsc_register_types)
+diff --git a/hw/arm/xilinx_zynq.c b/hw/arm/xilinx_zynq.c
+index 3985356..2e5b5fb 100644
+--- a/hw/arm/xilinx_zynq.c
++++ b/hw/arm/xilinx_zynq.c
+@@ -171,7 +171,7 @@ static void zynq_init(MachineState *machine)
+     BlockBackend *blk;
+     qemu_irq pic[64];
+     int n;
+-
++    
+     if (!cpu_model) {
+         cpu_model = "cortex-a9";
+     }
+@@ -198,7 +198,8 @@ static void zynq_init(MachineState *machine)
+         ram_size = 0x80000000;
+     }
+ 
+-    /* DDR remapped to address zero.  */
++    /* In our system DDR maps to 0x10000000*/ /* DDR remapped to address zero.  */
++        ram_size = 0x40000000;
+     memory_region_allocate_system_memory(ext_ram, NULL, "zynq.ext_ram",
+                                          ram_size);
+     memory_region_add_subregion(address_space_mem, 0, ext_ram);
+@@ -224,8 +225,10 @@ static void zynq_init(MachineState *machine)
+     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0xF8000000);
+ 
+     dev = qdev_create(NULL, "a9mpcore_priv");
+-    qdev_prop_set_uint32(dev, "num-cpu", 1);
++    //qdev_prop_set_uint32(dev, "num-cpu", 1);
++    qdev_prop_set_uint32(dev, "num-cpu", 2);
+     qdev_init_nofail(dev);
++    dev->id = "a9mpcore_priv"; // for later interrupts attach
+     busdev = SYS_BUS_DEVICE(dev);
+     sysbus_mmio_map(busdev, 0, MPCORE_PERIPHBASE);
+     sysbus_connect_irq(busdev, 0,
+@@ -305,12 +308,26 @@ static void zynq_init(MachineState *machine)
+     busdev = SYS_BUS_DEVICE(dev);
+     sysbus_connect_irq(busdev, 0, pic[40 - IRQ_OFFSET]);
+     sysbus_mmio_map(busdev, 0, 0xF8007000);
+-
++/*
++// tiger4nsc module     
++    dev = qdev_create(NULL, "tiger4nsc");
++    qdev_init_nofail(dev);
++    busdev = SYS_BUS_DEVICE(dev);
++    //sysbus_connect_irq(busdev, 0, pic[40 - IRQ_OFFSET]);
++    sysbus_mmio_map(busdev, 0, 0x43c00000);
++    
++    dev = qdev_create(NULL, "tiger4nsc");
++    qdev_init_nofail(dev);
++    busdev = SYS_BUS_DEVICE(dev);
++    //sysbus_connect_irq(busdev, 0, pic[40 - IRQ_OFFSET]);
++    sysbus_mmio_map(busdev, 0, 0x43c10000);   
++*/    
++    
+     zynq_binfo.ram_size = ram_size;
+     zynq_binfo.kernel_filename = kernel_filename;
+     zynq_binfo.kernel_cmdline = kernel_cmdline;
+     zynq_binfo.initrd_filename = initrd_filename;
+-    zynq_binfo.nb_cpus = 1;
++    zynq_binfo.nb_cpus = 2;
+     zynq_binfo.board_id = 0xd32;
+     zynq_binfo.loader_start = 0;
+     zynq_binfo.board_setup_addr = BOARD_SETUP_ADDR;
+@@ -323,8 +340,9 @@ static void zynq_machine_init(MachineClass *mc)
+ {
+     mc->desc = "Xilinx Zynq Platform Baseboard for Cortex-A9";
+     mc->init = zynq_init;
+-    mc->max_cpus = 1;
++    mc->max_cpus = 2;
+     mc->no_sdcard = 1;
++    mc->has_dynamic_sysbus = true;
+ }
+ 
+ DEFINE_MACHINE("xilinx-zynq-a9", zynq_machine_init)
+diff --git a/hw/block/Makefile.objs b/hw/block/Makefile.objs
+index e0ed980..d48970d 100644
+--- a/hw/block/Makefile.objs
++++ b/hw/block/Makefile.objs
+@@ -7,7 +7,7 @@ common-obj-$(CONFIG_PFLASH_CFI02) += pflash_cfi02.o
+ common-obj-$(CONFIG_XEN) += xen_disk.o
+ common-obj-$(CONFIG_ECC) += ecc.o
+ common-obj-$(CONFIG_ONENAND) += onenand.o
+-common-obj-$(CONFIG_NVME_PCI) += nvme.o
++common-obj-$(CONFIG_NVME_PCI) += nvme.o nvme_ctrl.o
+ 
+ obj-$(CONFIG_SH4) += tc58128.o
+ 
+diff --git a/hw/block/nvme.c b/hw/block/nvme.c
+index 6071dc1..ec0c949 100644
+--- a/hw/block/nvme.c
++++ b/hw/block/nvme.c
+@@ -102,15 +102,19 @@ static uint16_t nvme_map_prp(QEMUSGList *qsg, QEMUIOVector *iov, uint64_t prp1,
+ 
+     if (!prp1) {
+         return NVME_INVALID_FIELD | NVME_DNR;
+-    } else if (n->cmbsz && prp1 >= n->ctrl_mem.addr &&
++// if requested prp1 address belongs to ctrl_mem USE qemu_iovec        
++    } else if (n->cmbsz &&
++               prp1 >= n->ctrl_mem.addr &&
+                prp1 < n->ctrl_mem.addr + int128_get64(n->ctrl_mem.size)) {
+         qsg->nsg = 0;
+         qemu_iovec_init(iov, num_prps);
+         qemu_iovec_add(iov, (void *)&n->cmbuf[prp1 - n->ctrl_mem.addr], trans_len);
++// othersiwe use pci_dma_sglist    
+     } else {
+         pci_dma_sglist_init(qsg, &n->parent_obj, num_prps);
+         qemu_sglist_add(qsg, prp1, trans_len);
+     }
++    
+     len -= trans_len;
+     if (len) {
+         if (!prp2) {
+@@ -1117,4 +1121,4 @@ static void nvme_register_types(void)
+     type_register_static(&nvme_info);
+ }
+ 
+-type_init(nvme_register_types)
++type_init(nvme_register_types);
+diff --git a/hw/block/nvme_ctrl.c b/hw/block/nvme_ctrl.c
+new file mode 100644
+index 0000000..b5346f1
+--- /dev/null
++++ b/hw/block/nvme_ctrl.c
+@@ -0,0 +1,1538 @@
++/*
++ * QEMU NVM Express Controller
++ *
++ * Copyright (c) 2012, Intel Corporation
++ *
++ * Written by Keith Busch <keith.busch@intel.com>
++ *
++ * This code is licensed under the GNU GPL v2 or later.
++ */
++
++/**
++ * Reference Specs: http://www.nvmexpress.org, 1.2, 1.1, 1.0e
++ *
++ *  http://www.nvmexpress.org/resources/
++ */
++
++/**
++ * Antonio Barbalace
++ * need to extend this to support NVMeCtrl connection
++ */
++
++/**
++ * Usage: add options:
++ *      -drive file=<file>,if=none,id=<drive_id>
++ *      -device nvme,drive=<drive_id>,serial=<serial>,id=<id[optional]>, \
++ *              cmb_size_mb=<cmb_size_mb[optional]>
++ *
++ * Note cmb_size_mb denotes size of CMB in MB. CMB is assumed to be at
++ * offset 0 in BAR2 and supports only WDS, RDS and SQS for now.
++ */
++
++#include "qemu/osdep.h"
++#include "hw/block/block.h"
++#include "hw/hw.h"
++#include "hw/pci/msix.h"
++#include "hw/pci/pci.h"
++#include "sysemu/sysemu.h"
++#include "qapi/error.h"
++#include "qapi/visitor.h"
++#include "sysemu/block-backend.h"
++
++#include "qemu/log.h"
++#include "qemu/error-report.h"
++#include "qemu/event_notifier.h"
++#include "qom/object_interfaces.h"
++#include "chardev/char-fe.h"
++
++#include "nvme.h"
++
++/* need to redefine some data structure here */
++
++
++typedef struct NvmeCtrlRequest {
++    struct NvmeCtrlSQueue       *sq;
++    BlockAIOCB              *aiocb;
++    uint16_t                status;
++    bool                    has_sg;
++    NvmeCqe                 cqe;
++    BlockAcctCookie         acct;
++    QEMUSGList              qsg;
++    QEMUIOVector            iov;
++    QTAILQ_ENTRY(NvmeCtrlRequest)entry;
++} NvmeCtrlRequest;
++
++typedef struct NvmeCtrlSQueue {
++    struct NvmeCtrlState *ctrl;
++    uint16_t    sqid;
++    uint16_t    cqid;
++    uint32_t    head;
++    uint32_t    tail;
++    uint32_t    size;
++    uint64_t    dma_addr;
++    QEMUTimer   *timer;
++    NvmeCtrlRequest *io_req;
++    QTAILQ_HEAD(ctrl_sq_req_list, NvmeCtrlRequest) req_list;
++    QTAILQ_HEAD(ctrl_out_req_list, NvmeCtrlRequest) out_req_list;
++    QTAILQ_ENTRY(NvmeCtrlSQueue) entry;
++} NvmeCtrlSQueue;
++
++typedef struct NvmeCtrlCQueue {
++    struct NvmeCtrlState *ctrl;
++    uint8_t     phase;
++    uint16_t    cqid;
++    uint16_t    irq_enabled;
++    uint32_t    head;
++    uint32_t    tail;
++    uint32_t    vector;
++    uint32_t    size;
++    uint64_t    dma_addr;
++    QEMUTimer   *timer;
++    QTAILQ_HEAD(ctrl_sq_list, NvmeCtrlSQueue) sq_list;
++    QTAILQ_HEAD(ctrl_cq_req_list, NvmeCtrlRequest) req_list;
++} NvmeCtrlCQueue;
++
++
++// for DMA data structures
++#define DMA_FLAG_TO_HOST  (0x1 << 3)
++#define DMA_FLAG_TO_SSD   (0x1 << 4)
++#define DMA_FLAG_DIRECT   (0x1 << 5)
++#define DMA_FLAG_AUTO     (0x1 << 6)
++
++#define DMA_DATA_SIZE       4096
++
++/* packets do not include source but only destination */
++typedef struct DMAPacket {
++    uint64_t addr; // this is addr or prp1
++    uint64_t prp2; // this is prp2 when it exists
++    uint32_t offset4KB; // this is only used by the host
++    uint32_t slot;
++    uint32_t len;
++    uint32_t sequence;
++    uint32_t idx;
++    uint32_t flags;  //includes packet directions
++    char     data[]; //here goes the data
++} DMAPacket;
++
++
++#define DMA_PACKET_SIZE     (sizeof(DMAPacket) + DMA_DATA_SIZE)
++
++
++
++#undef TYPE_NVME
++#define TYPE_NVME_CTRL "nvme_ctrl"
++#undef NVME
++#define NVME_CTRL(obj) \
++        OBJECT_CHECK(NvmeCtrlState, (obj), TYPE_NVME_CTRL)
++
++typedef struct NvmeCtrlState {
++    PCIDevice    parent_obj;
++    MemoryRegion iomem;
++    MemoryRegion ctrl_mem;
++    NvmeBar      bar;
++    BlockConf    conf;
++    
++    CharBackend  server_chr;
++    CharBackend  dma_chr;
++
++    uint32_t    page_size;
++    uint16_t    page_bits;
++    uint16_t    max_prp_ents;
++    uint16_t    cqe_size;
++    uint16_t    sqe_size;
++    uint32_t    reg_size;
++    uint32_t    num_namespaces;
++    uint32_t    num_queues;
++    uint32_t    max_q_ents;
++    uint64_t    ns_size;
++    uint32_t    cmb_size_mb;
++    uint32_t    cmbsz;
++    uint32_t    cmbloc;
++    uint8_t     *cmbuf;
++    
++    uint32_t    can_receiveDMA;
++    DMAPacket   *bufferDMA;
++
++    char            *serial;
++    NvmeNamespace   *namespaces;
++    NvmeCtrlSQueue      **sq;
++    NvmeCtrlCQueue      **cq;
++    NvmeCtrlSQueue      admin_sq;
++    NvmeCtrlCQueue      admin_cq;
++    NvmeIdCtrl      id_ctrl;
++} NvmeCtrlState;        
++        
++/*
++ * Communication protocol between server and client
++ * on the chr_fe we are sending 64 byte packets (submission queue size) from nvme_ctrl -> nvme_dev
++ * and completion queue size messages on the other side
++ * to distinguish between submission queues commands and emulated device commands
++ * bytes 15-8 (uint64_t size) of the 64 byte to:
++ *  - save the type of command
++ *  - save the queue id
++ */
++
++enum NvmeCtrlPrivCommands {
++    NVME_PRIV_CMD = 0xA5,
++    NVME_SPEC_CMD = 0x96,
++};
++
++enum NvmeCtrlPrivCmd {
++    NVME_PRIV_CMD_LINK_UP = 0xA6,
++    NVME_PRIV_CMD_LINK_DOWN,
++    NVME_PRIV_CMD_ENABLE,
++    NVME_PRIV_CMD_DISABLE,
++    
++    NVME_PRIV_CMD_DMA_DONE,
++    NVME_PRIV_CMD_DMA_ERROR,
++};
++
++typedef struct NvmeCmd_res1 {
++    uint8_t cmd; //command type: internal, admin queue, submission queue
++    uint8_t priv; //private commands
++    uint16_t sqid; //submission queue id;
++    uint32_t slot; //this is for auto DMA completions
++} NvmeCmd_res1;
++
++
++typedef struct NvmeCqe_rsvd {
++    uint8_t cmd; //command type: internal, admin queue, IO queue
++    uint8_t priv; //private command content
++    uint16_t rsvd; //future use
++} NvmeCqe_rsvd;
++
++
++static void nvme_process_sq(void *opaque);
++
++static void nvme_addr_read(NvmeCtrlState *n, hwaddr addr, void *buf, int size)
++{
++    if (n->cmbsz && addr >= n->ctrl_mem.addr &&
++                addr < (n->ctrl_mem.addr + int128_get64(n->ctrl_mem.size))) {
++        memcpy(buf, (void *)&n->cmbuf[addr - n->ctrl_mem.addr], size);
++    } else {
++        pci_dma_read(&n->parent_obj, addr, buf, size);
++    }
++}
++
++static int nvme_check_sqid(NvmeCtrlState *n, uint16_t sqid)
++{
++    return sqid < n->num_queues && n->sq[sqid] != NULL ? 0 : -1;
++}
++
++static int nvme_check_cqid(NvmeCtrlState *n, uint16_t cqid)
++{
++    return cqid < n->num_queues && n->cq[cqid] != NULL ? 0 : -1;
++}
++
++static void nvme_inc_cq_tail(NvmeCtrlCQueue *cq)
++{
++    cq->tail++;
++    if (cq->tail >= cq->size) {
++        cq->tail = 0;
++        cq->phase = !cq->phase;
++    }
++}
++
++static void nvme_inc_sq_head(NvmeCtrlSQueue *sq)
++{
++    sq->head = (sq->head + 1) % sq->size;
++}
++
++static uint8_t nvme_cq_full(NvmeCtrlCQueue *cq)
++{
++    return (cq->tail + 1) % cq->size == cq->head;
++}
++
++static uint8_t nvme_sq_empty(NvmeCtrlSQueue *sq)
++{
++    return sq->head == sq->tail;
++}
++
++static void nvme_isr_notify(NvmeCtrlState *n, NvmeCtrlCQueue *cq)
++{
++    if (cq->irq_enabled) {
++        if (msix_enabled(&(n->parent_obj))) {
++            msix_notify(&(n->parent_obj), cq->vector);
++        } else {
++            pci_irq_pulse(&n->parent_obj);
++        }
++    }
++}
++
++static uint16_t nvme_map_prp(QEMUSGList *qsg, QEMUIOVector *iov, uint64_t prp1,
++                             uint64_t prp2, uint32_t len, NvmeCtrlState *n)
++{
++    hwaddr trans_len = n->page_size - (prp1 % n->page_size);
++    trans_len = MIN(len, trans_len);
++    int num_prps = (len >> n->page_bits) + 1;
++
++    if (!prp1) {
++        return NVME_INVALID_FIELD | NVME_DNR;
++// if requested prp1 address belongs to ctrl_mem USE qemu_iovec        
++    } else if (n->cmbsz &&
++               prp1 >= n->ctrl_mem.addr &&
++               prp1 < n->ctrl_mem.addr + int128_get64(n->ctrl_mem.size)) {
++        qsg->nsg = 0;
++        qemu_iovec_init(iov, num_prps);
++        qemu_iovec_add(iov, (void *)&n->cmbuf[prp1 - n->ctrl_mem.addr], trans_len);
++// othersiwe use pci_dma_sglist    
++    } else {
++        pci_dma_sglist_init(qsg, &n->parent_obj, num_prps);
++        qemu_sglist_add(qsg, prp1, trans_len);
++    }
++    
++    len -= trans_len;
++    if (len) {
++        if (!prp2) {
++            goto unmap;
++        }
++        if (len > n->page_size) {
++            uint64_t prp_list[n->max_prp_ents];
++            uint32_t nents, prp_trans;
++            int i = 0;
++
++            nents = (len + n->page_size - 1) >> n->page_bits;
++            prp_trans = MIN(n->max_prp_ents, nents) * sizeof(uint64_t);
++            nvme_addr_read(n, prp2, (void *)prp_list, prp_trans);
++            while (len != 0) {
++                uint64_t prp_ent = le64_to_cpu(prp_list[i]);
++
++                if (i == n->max_prp_ents - 1 && len > n->page_size) {
++                    if (!prp_ent || prp_ent & (n->page_size - 1)) {
++                        goto unmap;
++                    }
++
++                    i = 0;
++                    nents = (len + n->page_size - 1) >> n->page_bits;
++                    prp_trans = MIN(n->max_prp_ents, nents) * sizeof(uint64_t);
++                    nvme_addr_read(n, prp_ent, (void *)prp_list,
++                        prp_trans);
++                    prp_ent = le64_to_cpu(prp_list[i]);
++                }
++
++                if (!prp_ent || prp_ent & (n->page_size - 1)) {
++                    goto unmap;
++                }
++
++                trans_len = MIN(len, n->page_size);
++                if (qsg->nsg){
++                    qemu_sglist_add(qsg, prp_ent, trans_len);
++                } else {
++                    qemu_iovec_add(iov, (void *)&n->cmbuf[prp_ent - n->ctrl_mem.addr], trans_len);
++                }
++                len -= trans_len;
++                i++;
++            }
++        } else {
++            if (prp2 & (n->page_size - 1)) {
++                goto unmap;
++            }
++            if (qsg->nsg) {
++                qemu_sglist_add(qsg, prp2, len);
++            } else {
++                qemu_iovec_add(iov, (void *)&n->cmbuf[prp2 - n->ctrl_mem.addr], trans_len);
++            }
++        }
++    }
++    return NVME_SUCCESS;
++
++ unmap:
++    qemu_sglist_destroy(qsg);
++    return NVME_INVALID_FIELD | NVME_DNR;
++}
++
++static uint16_t nvme_dma_read_prp(NvmeCtrlState *n, uint8_t *ptr, uint32_t len,
++    uint64_t prp1, uint64_t prp2)
++{
++    QEMUSGList qsg;
++    QEMUIOVector iov;
++    uint16_t status = NVME_SUCCESS;
++
++    if (nvme_map_prp(&qsg, &iov, prp1, prp2, len, n)) {
++        return NVME_INVALID_FIELD | NVME_DNR;
++    }
++    if (qsg.nsg > 0) {
++        if (dma_buf_read(ptr, len, &qsg)) {
++            status = NVME_INVALID_FIELD | NVME_DNR;
++        }
++        qemu_sglist_destroy(&qsg);
++    } else {
++        if (qemu_iovec_to_buf(&iov, 0, ptr, len) != len) {
++            status = NVME_INVALID_FIELD | NVME_DNR;
++        }
++        qemu_iovec_destroy(&iov);
++    }
++    return status;
++}
++
++
++
++
++static int nvme_ctrl_can_receive(void *opaque)
++{
++    return sizeof(NvmeCqe);
++}
++
++static void nvme_ctrl_receive(void *opaque, const uint8_t *buf, int size)
++{
++//    NvmeCtrlState *n = opaque; 
++    NvmeCqe nvme_compl;
++    memcpy((char *) &nvme_compl, buf, (size > sizeof(NvmeCqe)) ? sizeof(NvmeCqe) : size);
++    
++     qemu_log_mask(LOG_TRACE,"receive %d [[%d]]\n", size, (unsigned int)sizeof(NvmeCqe));
++    
++    switch ( ((NvmeCqe_rsvd *) &nvme_compl.rsvd)->cmd ) {
++        case NVME_PRIV_CMD: {
++             qemu_log_mask(LOG_TRACE,"private commands not supported jet\n");
++            break;
++        }
++        case NVME_SPEC_CMD: { 
++             qemu_log_mask(LOG_TRACE,
++                "result:0x%x sq_head:%d sq_id:%d cid:%d status:0x%x\n",
++                nvme_compl.result, (unsigned int)nvme_compl.sq_head, (unsigned int) nvme_compl.sq_id, 
++                (unsigned int) nvme_compl.cid, (unsigned int)nvme_compl.status);
++            
++            break;
++        }
++        default:
++                 qemu_log_mask(LOG_TRACE,"command not supported jet\n");
++    }
++
++    return;
++}
++
++static void nvme_ctrl_event(void *opaque, int event)
++{
++    //NVMe_DEVState *s = opaque;
++    
++     qemu_log_mask(LOG_TRACE,"event %x\n", event);
++/*    if (event == CHR_EVENT_BREAK)
++        serial_receive_break(s);*/
++}   
++
++// DMA packets ************************************************************************
++
++static int nvme_ctrl_can_receiveDMA(void *opaque)
++{
++    NvmeCtrlState *n = opaque; 
++    
++    return n->can_receiveDMA;
++}
++
++/*
++ * This code should be moved to dma.* or dma-helpers.*
++ * For now it is here to speed up development
++ */
++//static uint64_t dma_buf_rw_full(uint8_t *ptr, int32_t len,
++static uint64_t dma_buf_rw_full(char *ptr, int32_t len, 
++                                QEMUSGList *sg, int32_t offset,
++                                DMADirection dir)
++{
++    uint64_t resid;
++    int sg_cur_index;
++
++    resid = sg->size; // total scatter gather size
++    if (offset > resid)
++        //there is an error
++        return len;
++        
++    sg_cur_index = 0;
++    len = MIN(len, (resid - offset));
++    
++    while (len > 0) { // until we have space in the buffer or in the scatter-gather list we copy
++        ScatterGatherEntry entry = sg->sg[sg_cur_index++];
++        int32_t xfer = MIN(len, entry.len);
++        unsigned long sg_base_addr = entry.base;
++        if ( (xfer - offset) <= 0) {
++            offset -= xfer;
++            continue;
++        } 
++        else if ( !offset ) {
++            xfer -= offset;
++            sg_base_addr += offset;
++            offset = 0;
++        }
++        
++        dma_memory_rw(sg->as, sg_base_addr, ptr, xfer, dir);
++        ptr += xfer;
++        len -= xfer;
++        resid -= xfer;
++    }
++
++    return resid;
++}
++
++static void nvme_ctrl_receiveDMA(void *opaque, const uint8_t *buf, int size)
++{
++    NvmeCtrlState *n = opaque; 
++    int size_to_copy = (size > n->can_receiveDMA) ? n->can_receiveDMA : size;
++    
++    // buffering first (in case the message is not completely transferred
++    memcpy( ((char *) n->bufferDMA) + (DMA_PACKET_SIZE - n->can_receiveDMA), buf, size_to_copy);
++    n->can_receiveDMA -= size_to_copy;
++    if (n->can_receiveDMA)
++        // more data need to be buffered, cannot process the message, just return
++        return;
++    
++    qemu_log_mask(LOG_TRACE,"DMA receive %d [[%d]] addr:0x%lx prp2:%lx off:%x len:%d seq:%d idx:%d flags:0x%x\n",
++                  size, (int)DMA_PACKET_SIZE, 
++                  n->bufferDMA->addr, n->bufferDMA->prp2, n->bufferDMA->offset4KB,
++                  n->bufferDMA->len, n->bufferDMA->sequence, n->bufferDMA->idx, n->bufferDMA->flags);
++    
++    if ( (n->bufferDMA->flags & DMA_FLAG_DIRECT) ) {
++        // just write to the cpu memory the buffer, we have all the infos to do that
++        uint64_t offset = (n->bufferDMA->sequence * DMA_PACKET_SIZE);
++        uint64_t size = ((n->bufferDMA->len - offset) < DMA_PACKET_SIZE) ?
++                        (n->bufferDMA->len - offset) : DMA_PACKET_SIZE;
++        cpu_physical_memory_write( ((unsigned long) n->bufferDMA->addr) + offset, 
++                                    &(n->bufferDMA->data[0]), size); 
++    }
++    else if ( (n->bufferDMA->flags & DMA_FLAG_AUTO) ) {
++        QEMUSGList qsg;
++        QEMUIOVector iov;
++        
++        uint64_t prp1 = n->bufferDMA->addr;
++        uint64_t prp2 = n->bufferDMA->prp2;
++        
++        // create a scatter gather list from prp1 and prp2 first
++        if (nvme_map_prp(&qsg, &iov, prp1, prp2, 1024*1024, n)) { // TODO fix what len is this ...
++            qemu_log_mask(LOG_TRACE,"DMA cannot map the PRPs\n");
++            return;
++        }
++        if ( qsg.nsg == 0 ) {
++            qemu_log_mask(LOG_TRACE,"DMA not able to get an SGList -- iovec case not handled [prp1:0x%lx prp2:0x%lx]\n",
++                prp1, prp2);
++            return;
++        }
++        
++        // this is very similar to the above but takes into consideration also the above 
++        uint64_t offset = (n->bufferDMA->sequence * DMA_PACKET_SIZE);
++        uint64_t size = ((n->bufferDMA->len - offset) < DMA_PACKET_SIZE) ?
++                        (n->bufferDMA->len - offset) : DMA_PACKET_SIZE;        
++        dma_buf_rw_full(&(n->bufferDMA->data[0]), size,
++                        &qsg, ((4096 * n->bufferDMA->offset4KB) + offset),
++                        DMA_DIRECTION_FROM_DEVICE);
++        
++        //if this is the last packet of an idx send a message of completion
++        if ( (n->bufferDMA->len - offset) < DMA_PACKET_SIZE ) {
++            NvmeCmd done_command;
++            memset(&done_command, 0, sizeof(NvmeCmd));
++            ((NvmeCmd_res1 *) &done_command.res1)->cmd = NVME_PRIV_CMD;
++            ((NvmeCmd_res1 *) &done_command.res1)->priv = NVME_PRIV_CMD_DMA_DONE;
++            ((NvmeCmd_res1 *) &done_command.res1)->slot = n->bufferDMA->slot; 
++            
++            qemu_chr_fe_write_all(&n->server_chr, (const uint8_t * )&done_command,sizeof(NvmeCmd));   
++        }
++    }
++    
++    n->can_receiveDMA = DMA_PACKET_SIZE;
++    return;
++}
++
++static void nvme_ctrl_eventDMA(void *opaque, int event)
++{
++    //NVMe_DEVState *s = opaque;
++    
++     qemu_log_mask(LOG_TRACE,"DMA event %x\n", event);
++/*    if (event == CHR_EVENT_BREAK)
++        serial_receive_break(s);*/
++}   
++
++
++
++
++
++
++
++
++static void nvme_post_cqes(void *opaque)
++{
++    NvmeCtrlCQueue *cq = opaque;
++    NvmeCtrlState *n = cq->ctrl;
++    NvmeCtrlRequest *req, *next;
++
++    QTAILQ_FOREACH_SAFE(req, &cq->req_list, entry, next) {
++        NvmeCtrlSQueue *sq;
++        hwaddr addr;
++
++        if (nvme_cq_full(cq)) {
++            break;
++        }
++
++        QTAILQ_REMOVE(&cq->req_list, req, entry);
++        sq = req->sq;
++        req->cqe.status = cpu_to_le16((req->status << 1) | cq->phase);
++        req->cqe.sq_id = cpu_to_le16(sq->sqid);
++        req->cqe.sq_head = cpu_to_le16(sq->head);
++        addr = cq->dma_addr + cq->tail * n->cqe_size;
++        nvme_inc_cq_tail(cq);
++        pci_dma_write(&n->parent_obj, addr, (void *)&req->cqe,
++            sizeof(req->cqe));
++        QTAILQ_INSERT_TAIL(&sq->req_list, req, entry);
++    }
++    nvme_isr_notify(n, cq);
++}
++
++static void nvme_enqueue_req_completion(NvmeCtrlCQueue *cq, NvmeCtrlRequest *req)
++{
++    assert(cq->cqid == req->sq->cqid);
++    QTAILQ_REMOVE(&req->sq->out_req_list, req, entry);
++    QTAILQ_INSERT_TAIL(&cq->req_list, req, entry);
++    timer_mod(cq->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 500);
++}
++
++static void nvme_rw_cb(void *opaque, int ret)
++{
++    NvmeCtrlRequest *req = opaque;
++    NvmeCtrlSQueue *sq = req->sq;
++    NvmeCtrlState *n = sq->ctrl;
++    NvmeCtrlCQueue *cq = n->cq[sq->cqid];
++
++    if (!ret) {
++        block_acct_done(blk_get_stats(n->conf.blk), &req->acct);
++        req->status = NVME_SUCCESS;
++    } else {
++        block_acct_failed(blk_get_stats(n->conf.blk), &req->acct);
++        req->status = NVME_INTERNAL_DEV_ERROR;
++    }
++    if (req->has_sg) {
++        qemu_sglist_destroy(&req->qsg);
++    }
++    nvme_enqueue_req_completion(cq, req);
++}
++
++static uint16_t nvme_flush(NvmeCtrlState *n, NvmeNamespace *ns, NvmeCmd *cmd,
++    NvmeCtrlRequest *req)
++{
++    req->has_sg = false;
++    block_acct_start(blk_get_stats(n->conf.blk), &req->acct, 0,
++         BLOCK_ACCT_FLUSH);
++    req->aiocb = blk_aio_flush(n->conf.blk, nvme_rw_cb, req);
++
++    return NVME_NO_COMPLETE;
++}
++
++static uint16_t nvme_write_zeros(NvmeCtrlState *n, NvmeNamespace *ns, NvmeCmd *cmd,
++    NvmeCtrlRequest *req)
++{
++    NvmeRwCmd *rw = (NvmeRwCmd *)cmd;
++    const uint8_t lba_index = NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas);
++    const uint8_t data_shift = ns->id_ns.lbaf[lba_index].ds;
++    uint64_t slba = le64_to_cpu(rw->slba);
++    uint32_t nlb  = le16_to_cpu(rw->nlb) + 1;
++    uint64_t aio_slba = slba << (data_shift - BDRV_SECTOR_BITS);
++    uint32_t aio_nlb = nlb << (data_shift - BDRV_SECTOR_BITS);
++
++    if (slba + nlb > ns->id_ns.nsze) {
++        return NVME_LBA_RANGE | NVME_DNR;
++    }
++
++    req->has_sg = false;
++    block_acct_start(blk_get_stats(n->conf.blk), &req->acct, 0,
++                     BLOCK_ACCT_WRITE);
++    req->aiocb = blk_aio_pwrite_zeroes(n->conf.blk, aio_slba, aio_nlb,
++                                        BDRV_REQ_MAY_UNMAP, nvme_rw_cb, req);
++    return NVME_NO_COMPLETE;
++}
++
++static uint16_t nvme_rw(NvmeCtrlState *n, NvmeNamespace *ns, NvmeCmd *cmd,
++    NvmeCtrlRequest *req)
++{
++    NvmeRwCmd *rw = (NvmeRwCmd *)cmd;
++    uint32_t nlb  = le32_to_cpu(rw->nlb) + 1;
++    uint64_t slba = le64_to_cpu(rw->slba);
++    uint64_t prp1 = le64_to_cpu(rw->prp1);
++    uint64_t prp2 = le64_to_cpu(rw->prp2);
++
++    uint8_t lba_index  = NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas);
++    uint8_t data_shift = ns->id_ns.lbaf[lba_index].ds;
++    uint64_t data_size = (uint64_t)nlb << data_shift;
++    uint64_t data_offset = slba << data_shift;
++    int is_write = rw->opcode == NVME_CMD_WRITE ? 1 : 0;
++    enum BlockAcctType acct = is_write ? BLOCK_ACCT_WRITE : BLOCK_ACCT_READ;
++
++    if ((slba + nlb) > ns->id_ns.nsze) {
++        block_acct_invalid(blk_get_stats(n->conf.blk), acct);
++        return NVME_LBA_RANGE | NVME_DNR;
++    }
++
++    if (nvme_map_prp(&req->qsg, &req->iov, prp1, prp2, data_size, n)) {
++        block_acct_invalid(blk_get_stats(n->conf.blk), acct);
++        return NVME_INVALID_FIELD | NVME_DNR;
++    }
++
++    dma_acct_start(n->conf.blk, &req->acct, &req->qsg, acct);
++    if (req->qsg.nsg > 0) {
++        req->has_sg = true;
++        req->aiocb = is_write ?
++            dma_blk_write(n->conf.blk, &req->qsg, data_offset, BDRV_SECTOR_SIZE,
++                          nvme_rw_cb, req) :
++            dma_blk_read(n->conf.blk, &req->qsg, data_offset, BDRV_SECTOR_SIZE,
++                         nvme_rw_cb, req);
++    } else {
++        req->has_sg = false;
++        req->aiocb = is_write ?
++            blk_aio_pwritev(n->conf.blk, data_offset, &req->iov, 0, nvme_rw_cb,
++                            req) :
++            blk_aio_preadv(n->conf.blk, data_offset, &req->iov, 0, nvme_rw_cb,
++                           req);
++    }
++
++    return NVME_NO_COMPLETE;
++}
++
++static uint16_t nvme_io_cmd(NvmeCtrlState *n, NvmeCmd *cmd, NvmeCtrlRequest *req)
++{
++    NvmeNamespace *ns;
++    uint32_t nsid = le32_to_cpu(cmd->nsid);
++
++    if (nsid == 0 || nsid > n->num_namespaces) {
++        return NVME_INVALID_NSID | NVME_DNR;
++    }
++
++    ns = &n->namespaces[nsid - 1];
++    switch (cmd->opcode) {
++    case NVME_CMD_FLUSH:
++        return nvme_flush(n, ns, cmd, req);
++    case NVME_CMD_WRITE_ZEROS:
++        return nvme_write_zeros(n, ns, cmd, req); // TODO NOT SUPPORTED BY THE OpenSSD board
++    case NVME_CMD_WRITE:
++    case NVME_CMD_READ:
++        return nvme_rw(n, ns, cmd, req);
++    default:
++        return NVME_INVALID_OPCODE | NVME_DNR;
++    }
++}
++
++static void nvme_free_sq(NvmeCtrlSQueue *sq, NvmeCtrlState *n)
++{
++    n->sq[sq->sqid] = NULL;
++    timer_del(sq->timer);
++    timer_free(sq->timer);
++    g_free(sq->io_req);
++    if (sq->sqid) {
++        g_free(sq);
++    }
++}
++
++static uint16_t nvme_del_sq(NvmeCtrlState *n, NvmeCmd *cmd)
++{
++    NvmeDeleteQ *c = (NvmeDeleteQ *)cmd;
++    NvmeCtrlRequest *req, *next;
++    NvmeCtrlSQueue *sq;
++    NvmeCtrlCQueue *cq;
++    uint16_t qid = le16_to_cpu(c->qid);
++
++    if (!qid || nvme_check_sqid(n, qid)) {
++        return NVME_INVALID_QID | NVME_DNR;
++    }
++
++    sq = n->sq[qid];
++    while (!QTAILQ_EMPTY(&sq->out_req_list)) {
++        req = QTAILQ_FIRST(&sq->out_req_list);
++        assert(req->aiocb);
++        blk_aio_cancel(req->aiocb);
++    }
++    if (!nvme_check_cqid(n, sq->cqid)) {
++        cq = n->cq[sq->cqid];
++        QTAILQ_REMOVE(&cq->sq_list, sq, entry);
++
++        nvme_post_cqes(cq);
++        QTAILQ_FOREACH_SAFE(req, &cq->req_list, entry, next) {
++            if (req->sq == sq) {
++                QTAILQ_REMOVE(&cq->req_list, req, entry);
++                QTAILQ_INSERT_TAIL(&sq->req_list, req, entry);
++            }
++        }
++    }
++
++    nvme_free_sq(sq, n);
++    return NVME_SUCCESS;
++}
++
++static void nvme_init_sq(NvmeCtrlSQueue *sq, NvmeCtrlState *n, uint64_t dma_addr,
++    uint16_t sqid, uint16_t cqid, uint16_t size)
++{
++    int i;
++    NvmeCtrlCQueue *cq;
++
++    sq->ctrl = n;
++    sq->dma_addr = dma_addr;
++    sq->sqid = sqid;
++    sq->size = size;
++    sq->cqid = cqid;
++    sq->head = sq->tail = 0;
++    sq->io_req = g_new(NvmeCtrlRequest, sq->size);
++
++    QTAILQ_INIT(&sq->req_list);
++    QTAILQ_INIT(&sq->out_req_list);
++    for (i = 0; i < sq->size; i++) {
++        sq->io_req[i].sq = sq;
++        QTAILQ_INSERT_TAIL(&(sq->req_list), &sq->io_req[i], entry);
++    }
++    sq->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, nvme_process_sq, sq);
++
++    assert(n->cq[cqid]);
++    cq = n->cq[cqid];
++    QTAILQ_INSERT_TAIL(&(cq->sq_list), sq, entry);
++    n->sq[sqid] = sq;
++}
++
++static uint16_t nvme_create_sq(NvmeCtrlState *n, NvmeCmd *cmd)
++{
++    NvmeCtrlSQueue *sq;
++    NvmeCreateSq *c = (NvmeCreateSq *)cmd;
++
++    uint16_t cqid = le16_to_cpu(c->cqid);
++    uint16_t sqid = le16_to_cpu(c->sqid);
++    uint16_t qsize = le16_to_cpu(c->qsize);
++    uint16_t qflags = le16_to_cpu(c->sq_flags);
++    uint64_t prp1 = le64_to_cpu(c->prp1);
++
++    if (!cqid || nvme_check_cqid(n, cqid)) {
++        return NVME_INVALID_CQID | NVME_DNR;
++    }
++    if (!sqid || !nvme_check_sqid(n, sqid)) {
++        return NVME_INVALID_QID | NVME_DNR;
++    }
++    if (!qsize || qsize > NVME_CAP_MQES(n->bar.cap)) {
++        return NVME_MAX_QSIZE_EXCEEDED | NVME_DNR;
++    }
++    if (!prp1 || prp1 & (n->page_size - 1)) {
++        return NVME_INVALID_FIELD | NVME_DNR;
++    }
++    if (!(NVME_SQ_FLAGS_PC(qflags))) {
++        return NVME_INVALID_FIELD | NVME_DNR;
++    }
++    sq = g_malloc0(sizeof(*sq));
++    nvme_init_sq(sq, n, prp1, sqid, cqid, qsize + 1);
++    return NVME_SUCCESS;
++}
++
++static void nvme_free_cq(NvmeCtrlCQueue *cq, NvmeCtrlState *n)
++{
++    n->cq[cq->cqid] = NULL;
++    timer_del(cq->timer);
++    timer_free(cq->timer);
++    msix_vector_unuse(&n->parent_obj, cq->vector);
++    if (cq->cqid) {
++        g_free(cq);
++    }
++}
++
++static uint16_t nvme_del_cq(NvmeCtrlState *n, NvmeCmd *cmd)
++{
++    NvmeDeleteQ *c = (NvmeDeleteQ *)cmd;
++    NvmeCtrlCQueue *cq;
++    uint16_t qid = le16_to_cpu(c->qid);
++
++    if (!qid || nvme_check_cqid(n, qid)) {
++        return NVME_INVALID_CQID | NVME_DNR;
++    }
++
++    cq = n->cq[qid];
++    if (!QTAILQ_EMPTY(&cq->sq_list)) {
++        return NVME_INVALID_QUEUE_DEL;
++    }
++    nvme_free_cq(cq, n);
++    return NVME_SUCCESS;
++}
++
++static void nvme_init_cq(NvmeCtrlCQueue *cq, NvmeCtrlState *n, uint64_t dma_addr,
++    uint16_t cqid, uint16_t vector, uint16_t size, uint16_t irq_enabled)
++{
++    cq->ctrl = n;
++    cq->cqid = cqid;
++    cq->size = size;
++    cq->dma_addr = dma_addr;
++    cq->phase = 1;
++    cq->irq_enabled = irq_enabled;
++    cq->vector = vector;
++    cq->head = cq->tail = 0;
++    QTAILQ_INIT(&cq->req_list);
++    QTAILQ_INIT(&cq->sq_list);
++    msix_vector_use(&n->parent_obj, cq->vector);
++    n->cq[cqid] = cq;
++    cq->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, nvme_post_cqes, cq);
++}
++
++static uint16_t nvme_create_cq(NvmeCtrlState *n, NvmeCmd *cmd)
++{
++    NvmeCtrlCQueue *cq;
++    NvmeCreateCq *c = (NvmeCreateCq *)cmd;
++    uint16_t cqid = le16_to_cpu(c->cqid);
++    uint16_t vector = le16_to_cpu(c->irq_vector);
++    uint16_t qsize = le16_to_cpu(c->qsize);
++    uint16_t qflags = le16_to_cpu(c->cq_flags);
++    uint64_t prp1 = le64_to_cpu(c->prp1);
++
++    if (!cqid || !nvme_check_cqid(n, cqid)) {
++        return NVME_INVALID_CQID | NVME_DNR;
++    }
++    if (!qsize || qsize > NVME_CAP_MQES(n->bar.cap)) {
++        return NVME_MAX_QSIZE_EXCEEDED | NVME_DNR;
++    }
++    if (!prp1) {
++        return NVME_INVALID_FIELD | NVME_DNR;
++    }
++    if (vector > n->num_queues) {
++        return NVME_INVALID_IRQ_VECTOR | NVME_DNR;
++    }
++    if (!(NVME_CQ_FLAGS_PC(qflags))) {
++        return NVME_INVALID_FIELD | NVME_DNR;
++    }
++
++    cq = g_malloc0(sizeof(*cq));
++    nvme_init_cq(cq, n, prp1, cqid, vector, qsize + 1,
++        NVME_CQ_FLAGS_IEN(qflags));
++    return NVME_SUCCESS;
++}
++
++static uint16_t nvme_identify_ctrl(NvmeCtrlState *n, NvmeIdentify *c)
++{
++    uint64_t prp1 = le64_to_cpu(c->prp1);
++    uint64_t prp2 = le64_to_cpu(c->prp2);
++
++    return nvme_dma_read_prp(n, (uint8_t *)&n->id_ctrl, sizeof(n->id_ctrl),
++        prp1, prp2);
++}
++
++static uint16_t nvme_identify_ns(NvmeCtrlState *n, NvmeIdentify *c)
++{
++    NvmeNamespace *ns;
++    uint32_t nsid = le32_to_cpu(c->nsid);
++    uint64_t prp1 = le64_to_cpu(c->prp1);
++    uint64_t prp2 = le64_to_cpu(c->prp2);
++
++    if (nsid == 0 || nsid > n->num_namespaces) {
++        return NVME_INVALID_NSID | NVME_DNR;
++    }
++
++    ns = &n->namespaces[nsid - 1];
++    return nvme_dma_read_prp(n, (uint8_t *)&ns->id_ns, sizeof(ns->id_ns),
++        prp1, prp2);
++}
++
++static uint16_t nvme_identify_nslist(NvmeCtrlState *n, NvmeIdentify *c)
++{
++    static const int data_len = 4096;
++    uint32_t min_nsid = le32_to_cpu(c->nsid);
++    uint64_t prp1 = le64_to_cpu(c->prp1);
++    uint64_t prp2 = le64_to_cpu(c->prp2);
++    uint32_t *list;
++    uint16_t ret;
++    int i, j = 0;
++
++    list = g_malloc0(data_len);
++    for (i = 0; i < n->num_namespaces; i++) {
++        if (i < min_nsid) {
++            continue;
++        }
++        list[j++] = cpu_to_le32(i + 1);
++        if (j == data_len / sizeof(uint32_t)) {
++            break;
++        }
++    }
++    ret = nvme_dma_read_prp(n, (uint8_t *)list, data_len, prp1, prp2);
++    g_free(list);
++    return ret;
++}
++
++
++static uint16_t nvme_identify(NvmeCtrlState *n, NvmeCmd *cmd)
++{
++    NvmeIdentify *c = (NvmeIdentify *)cmd;
++
++    switch (le32_to_cpu(c->cns)) {
++    case 0x00:
++        return nvme_identify_ns(n, c);
++    case 0x01:
++        return nvme_identify_ctrl(n, c);
++    case 0x02:
++        return nvme_identify_nslist(n, c);
++    default:
++        return NVME_INVALID_FIELD | NVME_DNR;
++    }
++}
++
++static uint16_t nvme_get_feature(NvmeCtrlState *n, NvmeCmd *cmd, NvmeCtrlRequest *req)
++{
++    uint32_t dw10 = le32_to_cpu(cmd->cdw10);
++    uint32_t result;
++
++    switch (dw10) {
++    case NVME_VOLATILE_WRITE_CACHE:
++        result = blk_enable_write_cache(n->conf.blk);
++        break;
++    case NVME_NUMBER_OF_QUEUES:
++        result = cpu_to_le32((n->num_queues - 1) | ((n->num_queues - 1) << 16));
++        break;
++    default:
++        return NVME_INVALID_FIELD | NVME_DNR;
++    }
++
++    req->cqe.result = result;
++    return NVME_SUCCESS;
++}
++
++static uint16_t nvme_set_feature(NvmeCtrlState *n, NvmeCmd *cmd, NvmeCtrlRequest *req)
++{
++    uint32_t dw10 = le32_to_cpu(cmd->cdw10);
++    uint32_t dw11 = le32_to_cpu(cmd->cdw11);
++
++    switch (dw10) {
++    case NVME_VOLATILE_WRITE_CACHE:
++        blk_set_enable_write_cache(n->conf.blk, dw11 & 1);
++        break;
++    case NVME_NUMBER_OF_QUEUES:
++        req->cqe.result =
++            cpu_to_le32((n->num_queues - 1) | ((n->num_queues - 1) << 16));
++        break;
++    default:
++        return NVME_INVALID_FIELD | NVME_DNR;
++    }
++    return NVME_SUCCESS;
++}
++
++static uint16_t nvme_admin_cmd(NvmeCtrlState *n, NvmeCmd *cmd, NvmeCtrlRequest *req)
++{
++    switch (cmd->opcode) {
++    case NVME_ADM_CMD_DELETE_SQ:
++        return nvme_del_sq(n, cmd);
++    case NVME_ADM_CMD_CREATE_SQ:
++        return nvme_create_sq(n, cmd);
++    case NVME_ADM_CMD_DELETE_CQ:
++        return nvme_del_cq(n, cmd);
++    case NVME_ADM_CMD_CREATE_CQ:
++        return nvme_create_cq(n, cmd);
++    case NVME_ADM_CMD_IDENTIFY:
++        return nvme_identify(n, cmd);
++    case NVME_ADM_CMD_SET_FEATURES:
++        return nvme_set_feature(n, cmd, req);
++    case NVME_ADM_CMD_GET_FEATURES:
++        return nvme_get_feature(n, cmd, req);      
++// TODO more features are supported by the OpenSSD        
++    default:
++        return NVME_INVALID_OPCODE | NVME_DNR;
++    }
++}
++
++static void nvme_process_sq(void *opaque)
++{
++    NvmeCtrlSQueue *sq = opaque;
++    NvmeCtrlState *n = sq->ctrl;
++    NvmeCtrlCQueue *cq = n->cq[sq->cqid];
++
++    uint16_t status;
++    hwaddr addr;
++    NvmeCmd cmd, net_cmd;
++    NvmeCtrlRequest *req;
++
++    while (!(nvme_sq_empty(sq) || QTAILQ_EMPTY(&sq->req_list))) {
++        addr = sq->dma_addr + sq->head * n->sqe_size;
++        nvme_addr_read(n, addr, (void *)&cmd, sizeof(cmd));
++        nvme_inc_sq_head(sq);
++        
++        //submit the command to the remote
++        net_cmd = cmd;
++        ((NvmeCmd_res1 *) &net_cmd.res1)->cmd = NVME_SPEC_CMD;
++        ((NvmeCmd_res1 *) &net_cmd.res1)->sqid = sq->sqid;
++        
++        qemu_chr_fe_write_all(&n->server_chr, (const uint8_t * )&net_cmd, sizeof(NvmeCmd));
++
++        req = QTAILQ_FIRST(&sq->req_list);
++        QTAILQ_REMOVE(&sq->req_list, req, entry);
++        QTAILQ_INSERT_TAIL(&sq->out_req_list, req, entry);
++        memset(&req->cqe, 0, sizeof(req->cqe));
++        req->cqe.cid = cmd.cid;
++
++        // process ADMIN_CMD (0) or IO_CMD (other IDs) based on the command there is or there is no completion
++        status = sq->sqid ? nvme_io_cmd(n, &cmd, req) :
++            nvme_admin_cmd(n, &cmd, req);
++        if (status != NVME_NO_COMPLETE) {
++            req->status = status;
++            nvme_enqueue_req_completion(cq, req);
++        }
++    }
++}
++
++static void nvme_clear_ctrl(NvmeCtrlState *n)
++{
++    int i;
++
++    for (i = 0; i < n->num_queues; i++) {
++        if (n->sq[i] != NULL) {
++            nvme_free_sq(n->sq[i], n);
++        }
++    }
++    for (i = 0; i < n->num_queues; i++) {
++        if (n->cq[i] != NULL) {
++            nvme_free_cq(n->cq[i], n);
++        }
++    }
++
++    blk_flush(n->conf.blk);
++    n->bar.cc = 0;
++}
++
++static int nvme_start_ctrl(NvmeCtrlState *n)
++{
++    uint32_t page_bits = NVME_CC_MPS(n->bar.cc) + 12;
++    uint32_t page_size = 1 << page_bits;
++
++    if (n->cq[0] || n->sq[0] || !n->bar.asq || !n->bar.acq ||
++            n->bar.asq & (page_size - 1) || n->bar.acq & (page_size - 1) ||
++            NVME_CC_MPS(n->bar.cc) < NVME_CAP_MPSMIN(n->bar.cap) ||
++            NVME_CC_MPS(n->bar.cc) > NVME_CAP_MPSMAX(n->bar.cap) ||
++            NVME_CC_IOCQES(n->bar.cc) < NVME_CTRL_CQES_MIN(n->id_ctrl.cqes) ||
++            NVME_CC_IOCQES(n->bar.cc) > NVME_CTRL_CQES_MAX(n->id_ctrl.cqes) ||
++            NVME_CC_IOSQES(n->bar.cc) < NVME_CTRL_SQES_MIN(n->id_ctrl.sqes) ||
++            NVME_CC_IOSQES(n->bar.cc) > NVME_CTRL_SQES_MAX(n->id_ctrl.sqes) ||
++            !NVME_AQA_ASQS(n->bar.aqa) || !NVME_AQA_ACQS(n->bar.aqa)) {
++        return -1;
++    }
++
++    n->page_bits = page_bits;
++    n->page_size = page_size;
++    n->max_prp_ents = n->page_size / sizeof(uint64_t);
++    n->cqe_size = 1 << NVME_CC_IOCQES(n->bar.cc);
++    n->sqe_size = 1 << NVME_CC_IOSQES(n->bar.cc);
++    nvme_init_cq(&n->admin_cq, n, n->bar.acq, 0, 0,
++        NVME_AQA_ACQS(n->bar.aqa) + 1, 1);
++    nvme_init_sq(&n->admin_sq, n, n->bar.asq, 0, 0,
++        NVME_AQA_ASQS(n->bar.aqa) + 1);
++
++    return 0;
++}
++
++static void nvme_write_bar(NvmeCtrlState *n, hwaddr offset, uint64_t data,
++    unsigned size)
++{
++    switch (offset) {
++    case 0xc: // interrupt mask set INTMS
++        n->bar.intms |= data & 0xffffffff;
++        n->bar.intmc = n->bar.intms;
++        break;
++    case 0x10: // interrupt mask clear INTMC
++        n->bar.intms &= ~(data & 0xffffffff);
++        n->bar.intmc = n->bar.intms;
++        break;
++    case 0x14: // controller configuration CC
++        
++        
++        //// TODO check the meaning of the other fields ...
++        
++        
++        /* Windows first sends data, then sends enable bit */
++        if (!NVME_CC_EN(data) && !NVME_CC_EN(n->bar.cc) &&
++            !NVME_CC_SHN(data) && !NVME_CC_SHN(n->bar.cc))
++        {
++            n->bar.cc = data;
++        }
++
++        if (NVME_CC_EN(data) && !NVME_CC_EN(n->bar.cc)) {
++            n->bar.cc = data;
++            if (nvme_start_ctrl(n)) {
++                n->bar.csts = NVME_CSTS_FAILED;
++            } else {
++                n->bar.csts = NVME_CSTS_READY;
++                
++                    NvmeCmd connection_command;
++                    memset(&connection_command, 0, sizeof(NvmeCmd));
++                    ((NvmeCmd_res1 *) &connection_command.res1)->cmd = NVME_PRIV_CMD;
++                    ((NvmeCmd_res1 *) &connection_command.res1)->priv = NVME_PRIV_CMD_ENABLE;
++        
++                    qemu_chr_fe_write_all(&n->server_chr, (const uint8_t * )&connection_command,sizeof(NvmeCmd));   
++            }
++        } else if (!NVME_CC_EN(data) && NVME_CC_EN(n->bar.cc)) {
++            nvme_clear_ctrl(n);
++            n->bar.csts &= ~NVME_CSTS_READY;
++        }
++        if (NVME_CC_SHN(data) && !(NVME_CC_SHN(n->bar.cc))) {
++                nvme_clear_ctrl(n);
++                n->bar.cc = data;
++                n->bar.csts |= NVME_CSTS_SHST_COMPLETE;
++        } else if (!NVME_CC_SHN(data) && NVME_CC_SHN(n->bar.cc)) {
++                n->bar.csts &= ~NVME_CSTS_SHST_COMPLETE;
++                n->bar.cc = data;
++        }
++        break;
++    // 0x18-0x1B reserved
++    // 0x1C-0x1F controller status CSTS
++    // 0x20-0x23 NVM Subsystem Resquest (Optional) NSSR
++    case 0x24: // Admin Queue Attributes (AQA)
++        n->bar.aqa = data & 0xffffffff;
++        break;
++    case 0x28: // admin submission queue base address (ASQ)
++        n->bar.asq = data;
++        break;
++    case 0x2c: // admin submission queue base address (ASQ) +4
++        n->bar.asq |= data << 32;
++        break;
++    case 0x30: // admin completion queue base address (ACQ)
++        n->bar.acq = data;
++        break;
++    case 0x34: // admin completion queue base address (ACQ) +4
++        n->bar.acq |= data << 32;
++        break;
++    // HERE THERE ARE OTHER REGISTERS
++    // reserved
++    // command set specific registers (0xf00 - 0xfff)
++    default:
++        break;
++    }
++}
++
++static uint64_t nvme_mmio_read(void *opaque, hwaddr addr, unsigned size)
++{
++    NvmeCtrlState *n = (NvmeCtrlState *)opaque;
++    uint8_t *ptr = (uint8_t *)&n->bar;
++    uint64_t val = 0;
++
++    if (addr < sizeof(n->bar)) {
++        memcpy(&val, ptr + addr, size);
++    }
++    return val;
++}
++
++static void nvme_process_db(NvmeCtrlState *n, hwaddr addr, int val)
++{
++    uint32_t qid;
++
++    if (addr & ((1 << 2) - 1)) {
++        return;
++    }
++
++    if (((addr - 0x1000) >> 2) & 1) { //completion queue event
++        uint16_t new_head = val & 0xffff;
++        int start_sqs;
++        NvmeCtrlCQueue *cq;
++
++        qid = (addr - (0x1000 + (1 << 2))) >> 3;
++        if (nvme_check_cqid(n, qid)) {
++            return;
++        }
++
++        cq = n->cq[qid];
++        if (new_head >= cq->size) {
++            return;
++        }
++
++        start_sqs = nvme_cq_full(cq) ? 1 : 0;
++        cq->head = new_head;
++        if (start_sqs) {
++            NvmeCtrlSQueue *sq;
++            QTAILQ_FOREACH(sq, &cq->sq_list, entry) {
++                timer_mod(sq->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 500);
++            }
++            timer_mod(cq->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 500);
++        }
++
++        if (cq->tail != cq->head) {
++            nvme_isr_notify(n, cq);
++        }
++    } else { // submission queue event
++        uint16_t new_tail = val & 0xffff;
++        NvmeCtrlSQueue *sq;
++
++        qid = (addr - 0x1000) >> 3;
++        if (nvme_check_sqid(n, qid)) {
++            return;
++        }
++
++        sq = n->sq[qid];
++        if (new_tail >= sq->size) {
++            return;
++        }
++
++        sq->tail = new_tail;
++        timer_mod(sq->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 500);
++    }
++}
++
++static void nvme_mmio_write(void *opaque, hwaddr addr, uint64_t data,
++    unsigned size)
++{
++    NvmeCtrlState *n = (NvmeCtrlState *)opaque;
++    if (addr < sizeof(n->bar)) {
++        nvme_write_bar(n, addr, data, size);
++    } else if (addr >= 0x1000) {
++        nvme_process_db(n, addr, data);
++    }
++}
++
++static const MemoryRegionOps nvme_mmio_ops = {
++    .read = nvme_mmio_read,
++    .write = nvme_mmio_write,
++    .endianness = DEVICE_LITTLE_ENDIAN,
++    .impl = {
++        .min_access_size = 2,
++        .max_access_size = 8,
++    },
++};
++
++static void nvme_cmb_write(void *opaque, hwaddr addr, uint64_t data,
++    unsigned size)
++{
++    NvmeCtrlState *n = (NvmeCtrlState *)opaque;
++    memcpy(&n->cmbuf[addr], &data, size);
++}
++
++static uint64_t nvme_cmb_read(void *opaque, hwaddr addr, unsigned size)
++{
++    uint64_t val;
++    NvmeCtrlState *n = (NvmeCtrlState *)opaque;
++
++    memcpy(&val, &n->cmbuf[addr], size);
++    return val;
++}
++
++static const MemoryRegionOps nvme_cmb_ops = {
++    .read = nvme_cmb_read,
++    .write = nvme_cmb_write,
++    .endianness = DEVICE_LITTLE_ENDIAN,
++    .impl = {
++        .min_access_size = 2,
++        .max_access_size = 8,
++    },
++};
++
++static int nvme_init(PCIDevice *pci_dev)
++{
++    NvmeCtrlState *n = NVME_CTRL(pci_dev);
++    NvmeIdCtrl *id = &n->id_ctrl;
++
++    int i;
++    int64_t bs_size;
++    uint8_t *pci_conf;
++    Error *local_err = NULL;
++
++    if (!n->conf.blk) {
++        return -1;
++    }
++
++    bs_size = blk_getlength(n->conf.blk);
++    if (bs_size < 0) {
++        return -1;
++    }
++
++    blkconf_serial(&n->conf, &n->serial);
++    if (!n->serial) {
++        return -1;
++    }
++    blkconf_blocksizes(&n->conf);
++    blkconf_apply_backend_options(&n->conf, blk_is_read_only(n->conf.blk),
++                                  false, &local_err);
++    if (local_err) {
++        error_report_err(local_err);
++        return -1;
++    }
++
++    pci_conf = pci_dev->config;
++    pci_conf[PCI_INTERRUPT_PIN] = 1;
++    pci_config_set_prog_interface(pci_dev->config, 0x2);
++    pci_config_set_class(pci_dev->config, PCI_CLASS_STORAGE_EXPRESS);
++    pcie_endpoint_cap_init(&n->parent_obj, 0x80);
++
++    n->num_namespaces = 1;
++    n->num_queues = 64;
++    n->reg_size = pow2ceil(0x1004 + 2 * (n->num_queues + 1) * 4);
++    n->ns_size = bs_size / (uint64_t)n->num_namespaces;
++
++    n->namespaces = g_new0(NvmeNamespace, n->num_namespaces);
++    n->sq = g_new0(NvmeCtrlSQueue *, n->num_queues);
++    n->cq = g_new0(NvmeCtrlCQueue *, n->num_queues);
++
++    memory_region_init_io(&n->iomem, OBJECT(n), &nvme_mmio_ops, n,
++                          "nvme_ctrl", n->reg_size);
++    pci_register_bar(&n->parent_obj, 0,
++        PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_TYPE_64,
++        &n->iomem);
++    msix_init_exclusive_bar(&n->parent_obj, n->num_queues, 4, NULL);
++
++    id->vid = cpu_to_le16(pci_get_word(pci_conf + PCI_VENDOR_ID));
++    id->ssvid = cpu_to_le16(pci_get_word(pci_conf + PCI_SUBSYSTEM_VENDOR_ID));
++    strpadcpy((char *)id->mn, sizeof(id->mn), "QEMU NVMe Ctrl+", ' ');
++    strpadcpy((char *)id->fr, sizeof(id->fr), "1.0", ' ');
++    strpadcpy((char *)id->sn, sizeof(id->sn), n->serial, ' ');
++    id->rab = 6;
++    id->ieee[0] = 0x00;
++    id->ieee[1] = 0x02;
++    id->ieee[2] = 0xb3;
++    id->oacs = cpu_to_le16(0);
++    id->frmw = 7 << 1;
++    id->lpa = 1 << 0;
++    id->sqes = (0x6 << 4) | 0x6;
++    id->cqes = (0x4 << 4) | 0x4;
++    id->nn = cpu_to_le32(n->num_namespaces);
++    id->oncs = cpu_to_le16(NVME_ONCS_WRITE_ZEROS);
++    id->psd[0].mp = cpu_to_le16(0x9c4);
++    id->psd[0].enlat = cpu_to_le32(0x10);
++    id->psd[0].exlat = cpu_to_le32(0x4);
++    if (blk_enable_write_cache(n->conf.blk)) {
++        id->vwc = 1;
++    }
++
++    n->bar.cap = 0;
++    NVME_CAP_SET_MQES(n->bar.cap, 0x7ff);
++    NVME_CAP_SET_CQR(n->bar.cap, 1);
++    NVME_CAP_SET_AMS(n->bar.cap, 1);
++    NVME_CAP_SET_TO(n->bar.cap, 0xf);
++    NVME_CAP_SET_CSS(n->bar.cap, 1);
++    NVME_CAP_SET_MPSMAX(n->bar.cap, 4);
++
++    n->bar.vs = 0x00010200;
++    n->bar.intmc = n->bar.intms = 0;
++
++    if (n->cmb_size_mb) {
++
++        NVME_CMBLOC_SET_BIR(n->bar.cmbloc, 2);
++        NVME_CMBLOC_SET_OFST(n->bar.cmbloc, 0);
++
++        NVME_CMBSZ_SET_SQS(n->bar.cmbsz, 1);
++        NVME_CMBSZ_SET_CQS(n->bar.cmbsz, 0);
++        NVME_CMBSZ_SET_LISTS(n->bar.cmbsz, 0);
++        NVME_CMBSZ_SET_RDS(n->bar.cmbsz, 1);
++        NVME_CMBSZ_SET_WDS(n->bar.cmbsz, 1);
++        NVME_CMBSZ_SET_SZU(n->bar.cmbsz, 2); /* MBs */
++        NVME_CMBSZ_SET_SZ(n->bar.cmbsz, n->cmb_size_mb);
++
++        n->cmbloc = n->bar.cmbloc;
++        n->cmbsz = n->bar.cmbsz;
++
++        n->cmbuf = g_malloc0(NVME_CMBSZ_GETSIZE(n->bar.cmbsz));
++        memory_region_init_io(&n->ctrl_mem, OBJECT(n), &nvme_cmb_ops, n,
++                              "nvme-cmb", NVME_CMBSZ_GETSIZE(n->bar.cmbsz));
++        pci_register_bar(&n->parent_obj, NVME_CMBLOC_BIR(n->bar.cmbloc),
++            PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_TYPE_64 |
++            PCI_BASE_ADDRESS_MEM_PREFETCH, &n->ctrl_mem);
++
++    }
++
++    for (i = 0; i < n->num_namespaces; i++) {
++        NvmeNamespace *ns = &n->namespaces[i];
++        NvmeIdNs *id_ns = &ns->id_ns;
++        id_ns->nsfeat = 0;
++        id_ns->nlbaf = 0;
++        id_ns->flbas = 0;
++        id_ns->mc = 0;
++        id_ns->dpc = 0;
++        id_ns->dps = 0;
++        id_ns->lbaf[0].ds = BDRV_SECTOR_BITS;
++        id_ns->ncap  = id_ns->nuse = id_ns->nsze =
++            cpu_to_le64(n->ns_size >>
++                id_ns->lbaf[NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas)].ds);
++    }
++    
++    //connect to remote NVMe ctrl
++    Chardev *chr = qemu_chr_fe_get_driver(&n->server_chr);
++    
++    if ( !chr ) {
++        Error *errp;
++        error_setg(&errp, "nvme_init: Can't create a nvme_ctrl, empty char device");
++        return -1;
++    }
++    qemu_log_mask(LOG_TRACE, "nvme_init: %s\nNow sending connection message\n", chr->filename);
++    
++    // set handlers, because we need to receive the messages from the SSD controller as well
++    qemu_chr_fe_set_handlers(&n->server_chr, nvme_ctrl_can_receive, nvme_ctrl_receive, nvme_ctrl_event, 
++                             n, NULL, true);
++    qemu_chr_fe_set_open(&n->server_chr, 1); // not sure this is needed at all
++    
++    NvmeCmd connection_command;
++    memset(&connection_command, 0, sizeof(NvmeCmd));
++    ((NvmeCmd_res1 *) &connection_command.res1)->cmd = NVME_PRIV_CMD;
++    ((NvmeCmd_res1 *) &connection_command.res1)->priv = NVME_PRIV_CMD_LINK_UP;
++    
++    qemu_chr_fe_write_all(&n->server_chr, (const uint8_t * )&connection_command, sizeof(NvmeCmd));
++
++    chr = qemu_chr_fe_get_driver(&n->dma_chr);
++    
++    if ( !chr ) {
++        Error *errp;
++        error_setg(&errp, "nvme_init: Can't create a nvme_ctrl, empty char device for DMA");
++        return -1;
++    }
++    
++    // set handlers, because we need to receive the messages from the SSD controller as well
++    qemu_chr_fe_set_handlers(&n->dma_chr, nvme_ctrl_can_receiveDMA, nvme_ctrl_receiveDMA, nvme_ctrl_eventDMA, 
++                             n, NULL, true);
++    qemu_chr_fe_set_open(&n->dma_chr, 1); // not sure this is needed at all
++
++    n->can_receiveDMA = (sizeof(DMAPacket) + DMA_DATA_SIZE);
++    n->bufferDMA = g_malloc0(n->can_receiveDMA); // TODO free this buffer when destroying the object
++    
++    return 0;
++}
++
++static void nvme_exit(PCIDevice *pci_dev)
++{
++    NvmeCtrlState *n = NVME_CTRL(pci_dev);
++
++    nvme_clear_ctrl(n);
++    g_free(n->namespaces);
++    g_free(n->cq);
++    g_free(n->sq);
++    if (n->cmbsz) {
++        memory_region_unref(&n->ctrl_mem);
++    }
++
++    msix_uninit_exclusive_bar(pci_dev);
++}
++
++static Property nvme_props[] = {
++    DEFINE_BLOCK_PROPERTIES(NvmeCtrlState, conf),
++    DEFINE_PROP_CHR("chardev", NvmeCtrlState, server_chr), // connection to the other qemu
++    DEFINE_PROP_CHR("dmadev", NvmeCtrlState, dma_chr), // connection to the other qemu for DMA data transfers
++    DEFINE_PROP_STRING("serial", NvmeCtrlState, serial),
++    DEFINE_PROP_UINT32("cmb_size_mb", NvmeCtrlState, cmb_size_mb, 0),
++    DEFINE_PROP_END_OF_LIST(),
++};
++
++static const VMStateDescription nvme_vmstate = {
++    .name = "nvme_ctrl",
++    .unmigratable = 1,
++};
++
++static void nvme_class_init(ObjectClass *oc, void *data)
++{
++    DeviceClass *dc = DEVICE_CLASS(oc);
++    PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
++
++    pc->init = nvme_init;
++    pc->exit = nvme_exit;
++    pc->class_id = PCI_CLASS_STORAGE_EXPRESS;
++    pc->vendor_id = PCI_VENDOR_ID_INTEL;
++    pc->device_id = 0x5845;
++    pc->revision = 2;
++    pc->is_express = 1;
++
++    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
++    dc->desc = "Non-Volatile Memory Express Ctrl";
++    dc->props = nvme_props;
++    dc->vmsd = &nvme_vmstate;
++}
++
++static void nvme_instance_init(Object *obj)
++{
++    NvmeCtrlState *s = NVME_CTRL(obj);
++
++    device_add_bootindex_property(obj, &s->conf.bootindex,
++                                  "bootindex", "/namespace@1,0",
++                                  DEVICE(obj), &error_abort);
++}
++
++static const TypeInfo nvme_info = {
++    .name          = "nvme_ctrl",
++    .parent        = TYPE_PCI_DEVICE,
++    .instance_size = sizeof(NvmeCtrlState),
++    .class_init    = nvme_class_init,
++    .instance_init = nvme_instance_init,
++};
++
++static void nvme_register_types(void)
++{
++    type_register_static(&nvme_info);
++}
++
++type_init(nvme_register_types);
+diff --git a/hw/char/cadence_uart.c b/hw/char/cadence_uart.c
+index 4a2c124..7e1cd0d 100644
+--- a/hw/char/cadence_uart.c
++++ b/hw/char/cadence_uart.c
+@@ -29,6 +29,7 @@
+ #include "qemu/log.h"
+ #include "hw/char/cadence_uart.h"
+ 
++//#define CADENCE_UART_ERR_DEBUG
+ #ifdef CADENCE_UART_ERR_DEBUG
+ #define DB_PRINT(...) do { \
+     fprintf(stderr,  ": %s: ", __func__); \
+@@ -328,7 +329,7 @@ static void uart_write_tx_fifo(CadenceUARTState *s, const uint8_t *buf,
+ 
+     memcpy(s->tx_fifo + s->tx_count, buf, size);
+     s->tx_count += size;
+-
++    
+     cadence_uart_xmit(NULL, G_IO_OUT, s);
+ }
+ 
+@@ -382,7 +383,8 @@ static void uart_write(void *opaque, hwaddr offset,
+ {
+     CadenceUARTState *s = opaque;
+ 
+-    DB_PRINT(" offset:%x data:%08x\n", (unsigned)offset, (unsigned)value);
++    DB_PRINT(" offset:%x data:%08x %d\n", (unsigned)offset, (unsigned)value,
++             (int)(s->r[R_MR] & UART_MR_CHMODE));
+     offset >>= 2;
+     if (offset >= CADENCE_UART_R_MAX) {
+         return;
+@@ -449,7 +451,8 @@ static uint64_t uart_read(void *opaque, hwaddr offset,
+        c = s->r[offset];
+     }
+ 
+-    DB_PRINT(" offset:%x data:%08x\n", (unsigned)(offset << 2), (unsigned)c);
++    DB_PRINT(" offset:%x data:%08x (enable %x)\n", (unsigned)(offset << 2), (unsigned)c,
++             (unsigned int)(s->r[R_CR] & UART_CR_RX_DIS) || !(s->r[R_CR] & UART_CR_RX_EN));
+     return c;
+ }
+ 

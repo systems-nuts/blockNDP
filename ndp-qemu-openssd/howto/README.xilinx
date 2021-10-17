@@ -1,0 +1,53 @@
+
+HOW TO COMPILE
+==============
+ 
+Please note that this short guide assumes that the repositories are installed in the specific directories. It is therefore needed to update the paths.
+ 
+1) Create an out of the source tree directory build and make the sources (note that it is possible 
+
+# mkdir qemu-build-xilinx
+# cd qemu-build-xilinx
+# ../qemu/configure --disable-libssh2 --disable-tcmalloc --disable-glusterfs --disable-seccomp --disable-{bzip2,snappy,lzo} --disable-usb-redir --disable-libusb --disable-libnfs --disable-libiscsi --disable-rbd  --disable-spice --disable-attr --disable-cap-ng --disable-linux-aio --disable-uuid --disable-brlapi --disable-vnc-{jpeg,sasl,png} --disable-rdma --disable-bluez --enable-fdt --disable-curl --disable-curses --disable-sdl --disable-gtk  --disable-tpm --disable-vte --disable-kvm --disable-xen --disable-opengl --target-list=aarch64-softmmu
+# make -j 8
+# cd aarch64-softmmu/
+
+2) To quickly test the installation it is possible to run a SSD QEMU instance with a minimal set of devices and connect it via GDB
+
+# ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial mon:stdio -nographic -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf -dtb /mnt/nvme0n1p1/antonio/git/xilinx/2017.2-zc706-release/cosmos.dtb -s -S
+
+OPEN ANOTHER TERMINAL FOR GDB
+
+# /mnt/nvme0n1p1/antonio/git/SDK/2017.2/gnu/aarch32/lin/gcc-arm-none-eabi/bin/arm-none-eabi-gdb /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf
+   target remote :1234 ENTER
+   c ENTER
+   
+   ctrl+c
+   layout next ENTER
+
+TERMINATE THE VIRTUAL MACHINE
+   
+3) Now create the flash drives on the storage, the emulated devices in QEMU are fully configurable, here we pick the option of an SSD with 2 flash controllers (or channels) each with 2 ways, for a total flash memory size of 4GB
+
+# dd if=/dev/zero ibs=1056k count=2048 | tr "\000" "\377" > channel1.flash 
+# dd if=/dev/zero ibs=1056k count=2048 | tr "\000" "\377" > channel0.flash 
+
+4) Finally, load the system. This requires to use two additional consoles for the serial line and one additional console for the debugger
+ 
+# ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial pty -serial pty -nographic -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf -dtb /mnt/nvme0n1p1/antonio/git/xilinx/2017.2-zc706-release/cosmos.dtb -drive file=channel0.flash,if=none,format=raw,id=fid0 -drive file=channel1.flash,if=none,format=raw,id=fid1 -device tiger4nsc,drive=fid0,ways=2,phys=0x43c10000 -device tiger4nsc,drive=fid1,ways=2,phys=0x43c00000 -chardev socket,path=/tmp/nvme_server,server,nowait,id=nvme_server -chardev socket,path=/tmp/dma_server,server,nowait,id=dma_server -device nvme_dev,phys=0x83c00000,chardev=nvme_server,dmadev=dma_server -s -S -D my.log
+
+ON ANOTHER TERMINAL 
+
+# screen /dev/pts/XXX
+
+ON ANOTHER TERMINAL 
+
+# screen /dev/pts/YYY
+
+ON ANOTHER TERMINAL
+
+# /mnt/nvme0n1p1/antonio/git/SDK/2017.2/gnu/aarch32/lin/gcc-arm-none-eabi/bin/arm-none-eabi-gdb /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf
+   target remote :1234 ENTER
+   c ENTER
+   
+   ctrl+c

@@ -1,0 +1,125 @@
+ 
+  2046  mkdir qemu-build-x86
+ 2047  cd  qemu-build-x86
+ 2048  ../qemu/configure 
+ 2049  ../qemu/configure --target-list="x86_64-softmmu"
+ 2050  make -j 8
+ 2051  cd ..
+ 2052  cd qemu-build-x86/
+ 2053  ../qemu/configure --disable-libssh2 --disable-tcmalloc --disable-glusterfs --disable-seccomp --disable-{bzip2,snappy,lzo} --disable-usb-redir --disable-libusb --disable-libnfs --disable-libiscsi --disable-rbd  --disable-spice --disable-attr --disable-cap-ng --disable-linux-aio --disable-uuid --disable-brlapi --disable-vnc-{jpeg,sasl,png} --disable-rdma --disable-bluez --disable-fdt --disable-curl --disable-curses --disable-sdl        --disable-gtk  --disable-tpm --disable-vte --disable-xen --disable-opengl --target-list=x86_64-softmmu
+ 2054  make clean
+ 2055  ../qemu/configure --disable-libssh2 --disable-tcmalloc --disable-glusterfs --disable-seccomp --disable-{bzip2,snappy,lzo} --disable-usb-redir --disable-libusb --disable-libnfs --disable-libiscsi --disable-rbd  --disable-spice --disable-attr --disable-cap-ng --disable-linux-aio --disable-uuid --disable-brlapi --disable-vnc-{jpeg,sasl,png} --disable-rdma --disable-bluez --disable-fdt --disable-curl --disable-curses --disable-sdl        --disable-gtk  --disable-tpm --disable-vte --disable-xen --disable-opengl --target-list=x86_64-softmmu
+ 2056  make -j 4
+ 
+ 
+ 2037  cd x86_64-softmmu/
+ 2038  ls
+ 2039  ./qemu-system-x86_64 -hda ubuntu-test -cdrom ubuntu-6.10-desktop-i386.iso -m 192 -boot d
+ 2040  ./qemu-system-x86_64 -hda /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-test -cdrom /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-6.10-desktop-i386.iso -m 4G -boot d
+ 2041  ./qemu-system-x86_64 -hda /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-test -cdrom /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-16.04.3-server-amd64.iso -m 4G -boot d
+ 2042  ./qemu-system-x86_64 -hda /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-test -cdrom /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-16.04.3-server-amd64.iso -m 4G -boot d --stdio serial
+ 2043  ./qemu-system-x86_64 -hda /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-test -cdrom /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-16.04.3-server-amd64.iso -m 4G -boot d -serial stdio
+ 2044  ./qemu-system-x86_64 -hda /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-test -cdrom /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-16.04.3-server-amd64.iso -m 4G -boot d -no-graphics
+ 2045  ./qemu-system-x86_64 
+ 2046  ./qemu-system-x86_64 --help
+ 2047  ./qemu-system-x86_64 --help |graph
+ 2048  ./qemu-system-x86_64 --help |grep graph
+ 2049  ./qemu-system-x86_64 -hda /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-test -cdrom /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-16.04.3-server-amd64.iso -m 4G -boot d -nographic
+ 2050  ./qemu-system-x86_64 -hda /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-test -cdrom /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-16.04.3-server-amd64.iso -m 4G -boot d
+ 2051  ./qemu-system-x86_64 -hda /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-test -cdrom /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-16.04.3-server-amd64.iso -m 4G -boot d -smp 4
+ 2052  ./qemu-img create -f qcow2 /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-test 64G
+ 2053  ../qemu-img create -f qcow2 /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-test 64G
+ 2054  ./qemu-system-x86_64 -hda /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-test -cdrom /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-16.04.3-server-amd64.iso -m 8G -boot d -smp 4
+ 2055  ./qemu-system-x86_64 -hda /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-test -cdrom /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-16.04.3-server-amd64.iso -m 8G -boot d -smp 4 -monitor stdio
+ 2056  ./qemu-system-x86_64 -hda /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-test -m 8G -smp 4 -monitor stdio
+ 2057  history
+
+ 
+very old guide
+https://help.ubuntu.com/community/Installation/QemuEmulator
+https://wiki.qemu.org/index.php/Documentation/Networking
+(by default QEMU is loading the e1000)
+
+Ubuntu server has been installed with ssh server and nothing else
+
+installing in Ubuntu nvme-cli 
+
+--------------------------------------------------------------------------------------------------------------------------
+TRIAL WITH NVMe device from intel
+--------------------------------------------------------------------------------------------------------------------------
+
+ON THE HOST
+antonio@antonio-OptiPlex-9020:/mnt/nvme0n1p1/antonio/ubuntu_host$ dd if=/dev/zero of=blknvme bs=1M count=1024
+1024+0 records in
+1024+0 records out
+1073741824 bytes (1.1 GB, 1.0 GiB) copied, 0.388749 s, 2.8 GB/s
+antonio@antonio-OptiPlex-9020:/mnt/nvme0n1p1/antonio/ubuntu_host$ 
+
+./qemu-system-x86_64 -hda /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-test -m 8G -smp 4 -monitor stdio -drive file=/mnt/nvme0n1p1/antonio/ubuntu_host/blknvme,if=none,id=mynvme -device nvme,drive=mynvme,serial=deadbeef,cmb_size_mb=1024
+
+INITIALIZATION OF THE NVMe DISK --------------------------------------------------------------------------------------------
+
+fdisk /dev/nvme0n1 
+n
+p
+1
+ENTER
+w
+
+sudo mkfs -t ext4 /dev/nvme0n1p1  
+
+mount 
+
+-------------------------------------------------------------------------------------------- DONE INITIALIZATION
+
+This solves the issue with the raw image
+
+./qemu-system-x86_64 -hda /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-test -m 8G -smp 4 -monitor stdio -drive file=/mnt/nvme0n1p1/antonio/ubuntu_host/blknvme,if=none,format=raw,id=mynvme -device nvme,drive=mynvme,serial=deadbeef,cmb_size_mb=1024
+
+/qemu-system-x86_64 -hda /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-test -m 8G -smp 4 -monitor stdio -drive file=/mnt/nvme0n1p1/antonio/ubuntu_host/blknvme,if=none,format=raw,id=mynvme -chardev socket,path=/tmp/nvme_server,nowait,id=nvme_server -device nvme_ctrl,drive=mynvme,serial=deadbeef,cmb_size_mb=1024,chardev=nvme_server
+
+antonio@antonio-OptiPlex-9020:~/git/qemu-build-x86/x86_64-softmmu$ ./qemu-system-x86_64 -hda /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-test -m 8G -smp 4 -monitor stdio -drive file=/mnt/nvme0n1p1/antonio/ubuntu_host/blknvme,if=none,format=raw,id=mynvme -chardev socket,path=/tmp/nvme_server,nowait,id=nvme_server -device nvme_ctrl,drive=mynvme,serial=deadbeef,cmb_size_mb=1024,chardev=nvme_server --enable-kvm
+
+FOR VNC use
+vncviewer :5900
+
+
+
+
+WITH DMA SERVER (maybe in future version the DMA channel can be automatically instantiated by the server and passed via message to the client
+
+./qemu-system-x86_64 -hda /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-test -m 8G -smp 4 -monitor stdio -drive file=/mnt/nvme0n1p1/antonio/ubuntu_host/blknvme,if=none,format=raw,id=mynvme -chardev socket,path=/tmp/nvme_server,nowait,id=nvme_server -chardev socket,path=/tmp/dma_server,nowait,id=dma_server -device nvme_ctrl,drive=mynvme,serial=deadbeef,cmb_size_mb=1024,chardev=nvme_server,dmadev=dma_server --enable-kvm  -D my.log
+
+
+./qemu-system-x86_64 -hda /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-test -m 8G -smp 4 -monitor stdio -serial pty -append "console=tty0 console=ttyS0,115200,n8" -drive file=/mnt/nvme0n1p1/antonio/ubuntu_host/blknvme,if=none,format=raw,id=mynvme -chardev socket,path=/tmp/nvme_server,nowait,id=nvme_server -chardev socket,path=/tmp/dma_server,nowait,id=dma_server -device nvme_ctrl,drive=mynvme,serial=deadbeef,cmb_size_mb=1024,chardev=nvme_server,dmadev=dma_server --enable-kvm  -D my.log
+
+
+
+TO MANAGE THE HARD DISK in qcow2
+ 2039  sudo modprobe nbp
+ 2040  sudo modprobe nbd
+ 2041  sudo ./qemu-nbd --connect /dev/nbd0  /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-test
+ 2042  mount /dev/nbd0 /mnt/img/
+ 2043  sudo mount /dev/nbd0 /mnt/img/
+ 2044  sudo mount -t ext4 /dev/nbd0 /mnt/img/
+ 2045  dmesg
+ 2046  man mount
+ 2047  sudo mount -t ext4 /dev/nbd0 /mnt/img/
+ 2048  dmesg
+ 2049  sudo ./qemu-nbd --disconnect /dev/nbd0
+ 2050  sudo ./qemu-nbd --connect /dev/nbd0  /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-test
+ 2051  sudo mount -t ext4 /dev/nbd0p1 /mnt/img/
+
+
+
+./qemu-system-x86_64 -hda /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-test -m 8G -smp 4 -monitor stdio -serial pty -drive file=/mnt/nvme0n1p1/antonio/ubuntu_host/blknvme,if=none,format=raw,id=mynvme -chardev socket,path=/tmp/nvme_server,nowait,id=nvme_server -chardev socket,path=/tmp/dma_server,nowait,id=dma_server -device nvme_ctrl,drive=mynvme,serial=deadbeef,cmb_size_mb=1024,chardev=nvme_server,dmadev=dma_server -gdb tcp::12345
+
+
+
+
+
+
+ ./qemu-system-x86_64 -hda /mnt/nvme0n1p1/antonio/ubuntu_host/ubuntu-test -m 8G -smp 4 -monitor stdio -serial pty -drive file=/mnt/nvme0n1p1/antonio/ubuntu_host/blknvme,if=none,format=raw,id=mynvme -chardev socket,path=/tmp/nvme_server,nowait,id=nvme_server -chardev socket,path=/tmp/dma_server,nowait,id=dma_server -device nvme_ctrl,drive=mynvme,serial=deadbeef,cmb_size_mb=1024,chardev=nvme_server,dmadev=dma_server -gdb tcp::12345 -D my.log --enable-kvm
+
+
+

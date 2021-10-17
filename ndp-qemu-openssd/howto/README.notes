@@ -1,0 +1,27 @@
+Note that all the supporting files, such as compiled binary images, disk images, cross-compiler toolchain, etc. are included in another repo (qemu-bin.git)
+
+Xilinx's REFERENCES 
+
+http://www.wiki.xilinx.com/Zynq_2017.2_Release
+http://www.wiki.xilinx.com/Zynq+Releases
+http://www.wiki.xilinx.com/QEMU+-+Zynq+UltraScalePlus
+http://www.wiki.xilinx.com/QEMU+-+Zynq-7000
+http://www.wiki.xilinx.com/QEMU+Yocto+Flow
+http://www.wiki.xilinx.com/QEMU
+http://www.wiki.xilinx.com/
+http://www.wiki.xilinx.com/Expanding+File+System
+http://www.wiki.xilinx.com/Build+and+Modify+a+Rootfs
+http://www.wiki.xilinx.com/Build+Device+Tree+Blob
+
+OTHER REFERENCES
+
+https://en.wikibooks.org/wiki/QEMU/Images
+
+https://forums.xilinx.com/t5/Zynq-All-Programmable-SoC/Launching-QEMU-from-SDK/td-p/633656
+
+http://nairobi-embedded.org/060_qemu_mmio_memory_regions.html
+
+http://www.linux-kvm.org/images/f/fe/2010-forum-armbru-qdev.pdf
+
+https://www.xilinx.com/support/documentation/sw_manuals/petalinux2014_2/ug981-petalinux-application-development-debug.pdf
+https://www.xilinx.com/support/documentation/sw_manuals/xilinx2016_1/ug1169-zynqmp-qemu.pdf

@@ -1,0 +1,211 @@
+ 
+2029  ../qemu/configure --target-list="aarch64-softmmu" --enable-fdt --disable-kvm --disable-xen
+ 2030  make -j 4
+ 2031  cd ..
+ 2032  ls
+ 2033  cd qemu
+ 2034  ls
+ 2035  grep -r proto
+ 2036  grep protobuf
+ 2037  grep protobuf .
+ 2038  grep protobuf *
+ 2039  grep -r protobuf *
+ 2040  grep -r protobuf 
+ 2041  ./configure --help
+ 2042  grep -r protobuf  | grep proto
+ 2043  grep -r protobuf  | grep buf
+ 2044  cd ..
+ 2045  ls
+
+ 2057  ls
+ 2058  cd ..
+ 2059  cd qemu-build-xilinx/
+ 2060  make clean
+ 2061  ../qemu/configure --disable-libssh2 --disable-tcmalloc --disable-glusterfs --disable-seccomp --disable-{bzip2,snappy,lzo} --disable-usb-redir --disable-libusb --disable-libnfs --disable-libiscsi --disable-rbd  --disable-spice --disable-attr --disable-cap-ng --disable-linux-aio --disable-uuid --disable-brlapi --disable-vnc-{jpeg,sasl,png} --disable-rdma --disable-bluez --enable-fdt --disable-curl --disable-curses --disable-sdl        --disable-gtk  --disable-tpm --disable-vte --disable-kvm --disable-xen --disable-opengl --target-list=aarch64-softmmu
+ 2062  make -j 4
+ 2063  ls
+ 2064  cd aarch64-softmmu/
+ 2065  ls
+ 2066  ./qemu-system-aarch64 
+ 2067  ./qemu-system-aarch64 -machine
+ 2068  ./qemu-system-aarch64 -machine ?
+ 2069  konqueror . &
+ 2070  ./qemu-system-aarch64 -M arm-generic-fdt -serial mon:stdio -serial /dev/null -display none -device loader,addr=0xfd1a0104,data=0x8000000e,data-len=4 -device loader,file=/opt/Xilinx/Others/zynq_fsbl.elf,cpu-num=0 -device loader,file=/opt/Xilinx/Others/image.ub -hw-dtb tar -zxhvf 2017.2-<board>-release.tar.xz
+ 2071  ./qemu-system-aarch64 -M arm-generic-fdt -serial mon:stdio -serial /dev/null -display none -device loader,addr=0xfd1a0104,data=0x8000000e,data-len=4 -device loader,file=/opt/Xilinx/Others/zynq_fsbl.elf,cpu-num=0 -device loader,file=/opt/Xilinx/Others/image.ub -hw-dtb /opt/Xilinx/Others/system.dtb
+ 2072  ./qemu-system-aarch64 -M xilinx-zynq-a9 -machine linux=on -serial /dev/null -serial mon:stdio -display none -kernel /opt/Xilinx/Others/2017.2-zc706-release/image.ub -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb 
+ 2073  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial /dev/null -serial mon:stdio -display none -kernel /opt/Xilinx/Others/2017.2-zc706-release/image.ub -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb 
+ 2074  history
+ 2075  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial /dev/null -serial mon:stdio -display none -kernel /opt/Xilinx/Others/2017.2-zc706-release/image.ub -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -initrd /opt/Xilinx/Others/arm_ramdisk.image.gz 
+ 2076  ./qemu-system-aarch64 -M ?
+ 2077  ./qemu-system-aarch64 -M xilinx-zcu102 -serial /dev/null -serial mon:stdio -display none -kernel /opt/Xilinx/Others/2017.2-zc706-release/image.ub -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -initrd /opt/Xilinx/Others/arm_ramdisk.image.gz 
+ 2078  ./qemu-system-aarch64 -M xlnx-zcu102 -serial /dev/null -serial mon:stdio -display none -kernel /opt/Xilinx/Others/2017.2-zc706-release/image.ub -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -initrd /opt/Xilinx/Others/arm_ramdisk.image.gz 
+ 2079  ./qemu-system-aarch64 -M xlnx-ep108 -serial /dev/null -serial mon:stdio -display none -kernel /opt/Xilinx/Others/2017.2-zc706-release/image.ub -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -initrd /opt/Xilinx/Others/arm_ramdisk.image.gz 
+ 2080  ./qemu-system-aarch64 -M xilinx-zcu102 -serial /dev/null -serial mon:stdio -display none -kernel /opt/Xilinx/Others/2017.2-zc706-release/image.ub -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -initrd /opt/Xilinx/Others/arm_ramdisk.image.gz 
+ 2081  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial /dev/null -serial mon:stdio -display none -kernel /opt/Xilinx/Others/2017.2-zc706-release/image.ub -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -initrd /opt/Xilinx/Others/arm_ramdisk.image.gz 
+ 2082  ./qemu-system-aarch64 --help
+ 2083  ./qemu-system-aarch64 --help | grep SMP
+ 2084  ./qemu-system-aarch64 --help | grep smp
+ 2085  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial /dev/null -serial mon:stdio -display none -kernel /opt/Xilinx/Others/2017.2-zc706-release/image.ub -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -initrd /opt/Xilinx/Others/arm_ramdisk.image.gz -smp cpus=2
+ 2086  ./qemu-system-aarch64 --help | grep audio
+ 2087  cd ..
+ 2088  ./qemu-system-aarch64 --help | grep audio
+ 2089  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial /dev/null -serial mon:stdio -display none -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Release/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb
+ 2090  cd qemu-build-xilinx/
+ 2091  ls
+ 2092  cd aarch64-softmmu/
+ 2093  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial /dev/null -serial mon:stdio -display none -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Release/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb
+ 2094  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial /dev/null -serial mon:stdio -display none -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb
+ 2095* ./qemu-system-aarch64 --help | 
+ 2096* ./qemu-system-aarch64 -M  -serial /dev/null -serial mon:stdio -display none -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -s
+ 2097  history
+antonio@antonio-OptiPlex-9020:~/git/qemu-build-xilinx/aarch64-softmmu$ 
+
+
+e
+ 2068  ./qemu-system-aarch64 -machine ?
+ 2069  konqueror . &
+ 2070  ./qemu-system-aarch64 -M arm-generic-fdt -serial mon:stdio -serial /dev/null -display none -device loader,addr=0xfd1a0104,data=0x8000000e,data-len=4 -device loader,file=/opt/Xilinx/Others/zynq_fsbl.elf,cpu-num=0 -device loader,file=/opt/Xilinx/Others/image.ub -hw-dtb tar -zxhvf 2017.2-<board>-release.tar.xz
+ 2071  ./qemu-system-aarch64 -M arm-generic-fdt -serial mon:stdio -serial /dev/null -display none -device loader,addr=0xfd1a0104,data=0x8000000e,data-len=4 -device loader,file=/opt/Xilinx/Others/zynq_fsbl.elf,cpu-num=0 -device loader,file=/opt/Xilinx/Others/image.ub -hw-dtb /opt/Xilinx/Others/system.dtb
+ 2072  ./qemu-system-aarch64 -M xilinx-zynq-a9 -machine linux=on -serial /dev/null -serial mon:stdio -display none -kernel /opt/Xilinx/Others/2017.2-zc706-release/image.ub -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb 
+ 2073  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial /dev/null -serial mon:stdio -display none -kernel /opt/Xilinx/Others/2017.2-zc706-release/image.ub -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb 
+ 2074  history
+ 2075  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial /dev/null -serial mon:stdio -display none -kernel /opt/Xilinx/Others/2017.2-zc706-release/image.ub -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -initrd /opt/Xilinx/Others/arm_ramdisk.image.gz 
+ 2076  ./qemu-system-aarch64 -M ?
+ 2077  ./qemu-system-aarch64 -M xilinx-zcu102 -serial /dev/null -serial mon:stdio -display none -kernel /opt/Xilinx/Others/2017.2-zc706-release/image.ub -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -initrd /opt/Xilinx/Others/arm_ramdisk.image.gz 
+ 2078  ./qemu-system-aarch64 -M xlnx-zcu102 -serial /dev/null -serial mon:stdio -display none -kernel /opt/Xilinx/Others/2017.2-zc706-release/image.ub -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -initrd /opt/Xilinx/Others/arm_ramdisk.image.gz 
+ 2079  ./qemu-system-aarch64 -M xlnx-ep108 -serial /dev/null -serial mon:stdio -display none -kernel /opt/Xilinx/Others/2017.2-zc706-release/image.ub -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -initrd /opt/Xilinx/Others/arm_ramdisk.image.gz 
+ 2080  ./qemu-system-aarch64 -M xilinx-zcu102 -serial /dev/null -serial mon:stdio -display none -kernel /opt/Xilinx/Others/2017.2-zc706-release/image.ub -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -initrd /opt/Xilinx/Others/arm_ramdisk.image.gz 
+ 2081  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial /dev/null -serial mon:stdio -display none -kernel /opt/Xilinx/Others/2017.2-zc706-release/image.ub -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -initrd /opt/Xilinx/Others/arm_ramdisk.image.gz 
+ 2082  ./qemu-system-aarch64 --help
+ 2083  ./qemu-system-aarch64 --help | grep SMP
+ 2084  ./qemu-system-aarch64 --help | grep smp
+ 2085  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial /dev/null -serial mon:stdio -display none -kernel /opt/Xilinx/Others/2017.2-zc706-release/image.ub -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -initrd /opt/Xilinx/Others/arm_ramdisk.image.gz -smp cpus=2
+ 2086  ./qemu-system-aarch64 --help | grep audio
+ 2087  cd ..
+ 2088  ./qemu-system-aarch64 --help | grep audio
+ 2089  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial /dev/null -serial mon:stdio -display none -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Release/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb
+ 2090  cd qemu-build-xilinx/
+ 2091  ls
+ 2092  cd aarch64-softmmu/
+ 2093  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial /dev/null -serial mon:stdio -display none -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Release/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb
+ 2094  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial /dev/null -serial mon:stdio -display none -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb
+ 2095* ./qemu-system-aarch64 --help | 
+ 2096  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial /dev/null -serial mon:stdio -display none -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -s
+ 2097  history
+ 2098  ./qemu-system-aarch64 -M arm-generic-fdt -serial /dev/null -serial mon:stdio -display none -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -s
+ 2099  ./qemu-system-aarch64 -M arm-generic-fdt -serial mon:stdio -serial /dev/null -display none -device loader,addr=0xfd1a0104,data=0x8000000e,data-len=4 -device loader,file=/opt/Xilinx/Others/zynq_fsbl.elf,cpu-num=0 -device loader,file=/opt/Xilinx/Others/image.ub -hw-dtb /opt/Xilinx/Others/system.dtb
+ 2100  ./qemu-system-aarch64 -M arm-generic-fdt -serial mon:stdio -serial /dev/null -display none -device loader,addr=0xfd1a0104,data=0x8000000e,data-len=4 -device loader,file=/opt/Xilinx/Others/zynq_fsbl.elf,cpu-num=0 -device loader,file=/opt/Xilinx/Others/image.ub -dtb /opt/Xilinx/Others/system.dtb
+ 2101  ./qemu-system-aarch64 -M ?
+ 2102  ./qemu-system-aarch64 -M none -serial mon:stdio -serial /dev/null -display none -device loader,addr=0xfd1a0104,data=0x8000000e,data-len=4 -device loader,file=/opt/Xilinx/Others/zynq_fsbl.elf,cpu-num=0 -device loader,file=/opt/Xilinx/Others/image.ub -dtb /opt/Xilinx/Others/system.dtb
+ 2103  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial /dev/null -serial mon:stdio -display none -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -s
+ 2104  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial pts -serial mon:stdio -display none -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -s
+ 2105  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial stdio -display none -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -s
+ 2106  ./qemu-system-aarch64 -M xilinx-zynq-a9 -display none -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -s
+ 2107  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial mon:stdio -serial pty  -display none -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -s
+ 2108  ./qemu-system-aarch64 --help | serial 
+ 2109  ./qemu-system-aarch64 --help | grep serial 
+ 2110  ./qemu-system-aarch64 --help | more
+ 2111  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial mon:stdio -serial pty  -display none -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -s -S
+ 2112  ../qemu/configure --disable-libssh2 --disable-tcmalloc --disable-glusterfs --disable-seccomp --disable-{bzip2,snappy,lzo} --disable-usb-redir --disable-libusb --disable-libnfs --disable-libiscsi --disable-rbd  --disable-spice --disable-attr --disable-cap-ng --disable-linux-aio --disable-uuid --disable-brlapi --disable-vnc-{jpeg,sasl,png} --disable-rdma --disable-bluez --enable-fdt --disable-curl --disable-curses --disable-sdl        --disable-gtk  --disable-tpm --disable-vte --disable-kvm --disable-xen --disable-opengl --target-list=aarch64-softmmu
+ 2113  cd ..
+ 2114  ../qemu/configure --disable-libssh2 --disable-tcmalloc --disable-glusterfs --disable-seccomp --disable-{bzip2,snappy,lzo} --disable-usb-redir --disable-libusb --disable-libnfs --disable-libiscsi --disable-rbd  --disable-spice --disable-attr --disable-cap-ng --disable-linux-aio --disable-uuid --disable-brlapi --disable-vnc-{jpeg,sasl,png} --disable-rdma --disable-bluez --enable-fdt --disable-curl --disable-curses --disable-sdl        --disable-gtk  --disable-tpm --disable-vte --disable-kvm --disable-xen --disable-opengl --target-list=aarch64-softmmu
+ 2115  make -j 4
+ 2116  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial mon:stdio -serial pty  -display none -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -s -S
+ 2117  cd aarch64-softmmu/
+ 2118  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial mon:stdio -serial pty  -display none -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -s -S
+ 2119  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial pty -serial pty  -display none -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -s -S
+ 2120  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial pty -serial pty  -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -s -S
+ 2121  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial pty -serial pty -nographics -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -s -S
+ 2122  ./qemu-system-aarch64 --help | grep graphic
+ 2123  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial pty -serial pty -nographic -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/system.dtb -s -S
+ 2124  history
+antonio@antonio-OptiPlex-9020:~/git/qemu-build-xilinx/aarch64-softmmu$ 
+
+/qemu-system-aarch64 -M xilinx-zynq-a9 -serial pty -serial pty -nographic -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/cosmos.dtb -s -S
+
+ 2081  ls -l
+ 2082  vim my.log 
+ 2083  ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial pty -serial pty -nographic -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/cosmos.dtb -drive file=channel0.flash,if=none,id=fid0 -drive file=channel1.flash,if=none,id=fid1 -device tiger4nsc,drive=fid0,ways=2,phys=0x43c10000 -device tiger4nsc,drive=fid1,ways=2,phys=0x43c00000 -s -S -D my.log
+
+
+ 2084  ls
+ 2085  ls -l
+ 2086  dd if=/dev/zero of=channel0.flash bs=1M count=2048
+ 2087  dd if=/dev/zero of=channel1.flash bs=1M count=2048
+ 2088  vim my.log 
+ 2089  history
+
+ 
+   dd if=/dev/zero of=channel0.flash bs=1M count=2112
+   dd if=/dev/zero of=channel1.flash bs=1M count=2112
+
+   GDB @ antonio@antonio-OptiPlex-9020:/opt/Xilinx/SDK/2017.2/gnu/aarch32/lin/gcc-arm-none-eabi/bin$ 
+   file /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf
+
+   antonio@antonio-OptiPlex-9020:~/git/qemu-build-xilinx/aarch64-softmmu$ vim my.log 
+antonio@antonio-OptiPlex-9020:~/git/qemu-build-xilinx/aarch64-softmmu$ ./qemu-system-aarch64 -M xilinx-zynq-a9 -serial pty -serial pty -nographic -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/cosmos.dtb -drive file=channel0.flash,if=none,id=fid0 -drive file=channel1.flash,if=none,id=fid1 -device tiger4nsc,drive=fid0,ways=2,phys=0x43c10000 -device tiger4nsc,drive=fid1,ways=2,phys=0x43c00000 -s -S -D my.log
+WARNING: Image format was not specified for 'channel0.flash' and probing guessed raw.
+         Automatically detecting the format is dangerous for raw images, write operations on block 0 will be restricted.
+         Specify the 'raw' format explicitly to remove the restrictions.
+WARNING: Image format was not specified for 'channel1.flash' and probing guessed raw.
+         Automatically detecting the format is dangerous for raw images, write operations on block 0 will be restricted.
+         Specify the 'raw' format explicitly to remove the restrictions.
+QEMU 2.9.50 monitor - type 'help' for more information
+(qemu) qemu-system-aarch64: -serial pty: char device redirected to /dev/pts/19 (label serial0)
+qemu-system-aarch64: -serial pty: char device redirected to /dev/pts/35 (label serial1)
+qemu-system-aarch64: terminating on signal 2
+antonio@antonio-OptiPlex-9020:~/git/qemu-build-xilinx/aarch64-softmmu$ 
+
+  LINK    aarch64-softmmu/qemu-system-aarch64
+antonio@antonio-OptiPlex-9020:~/git/qemu-build-xilinx$ make -j 4
+antonio@antonio-OptiPlex-9020:~/git/qemu-build-xilinx$ make -j 4
+  CC      aarch64-softmmu/hw/arm/tiger4nsc.o
+
+  
+  screen /dev/pts/XXX
+  
+  
+  antonio@antonio-OptiPlex-9020:/opt/Xilinx/SDK/2017.2/gnu/aarch32/lin/gcc-arm-none-eabi/bin$ ./arm-none-eabi-gdb /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf
+GNU gdb (Linaro GDB 2017.01) 7.12.1.20170126-git
+Copyright (C) 2017 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.  Type "show copying"
+and "show warranty" for details.
+This GDB was configured as "--host=x86_64-unknown-linux-gnu --target=arm-none-eabi".
+Type "show configuration" for configuration details.
+For bug reporting instructions, please see:
+<http://www.gnu.org/software/gdb/bugs/>.
+Find the GDB manual and other documentation resources online at:
+<http://www.gnu.org/software/gdb/documentation/>.
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+Reading symbols from /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf...done.
+
+
+./qemu-system-aarch64 -M xilinx-zynq-a9 -serial pty -serial pty -nographic -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/cosmos.dtb -drive file=channel0.flash,if=none,format=raw,id=fid0 -drive file=channel1.flash,if=none,format=raw,id=fid1 -device tiger4nsc,drive=fid0,ways=2,phys=0x43c10000 -device tiger4nsc,drive=fid1,ways=2,phys=0x43c00000 -s -S -D my.log                                    
+
+antonio@antonio-OptiPlex-9020:~/git/qemu-build-xilinx$ make -j 4
+                                                                                                                               
+                                      
+LISTING the possible devices in qemu that are available
+./qemu-system-aarch64 -machine xilinx-zynq-a9 -device ?
+
+
+NOW CONNECTING WITH THE UNIX DOM SOCKET
+./qemu-system-aarch64 -M xilinx-zynq-a9 -serial pty -serial pty -nographic -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/cosmos.dtb -drive file=channel0.flash,if=none,format=raw,id=fid0 -drive file=channel1.flash,if=none,format=raw,id=fid1 -device tiger4nsc,drive=fid0,ways=2,phys=0x43c10000 -device tiger4nsc,drive=fid1,ways=2,phys=0x43c00000 -chardev socket,path=/tmp/nvme_server,server,nowait,id=nvme_server -device nvme_dev,phys=0x83c00000,chardev=nvme_server  -s -S -D my.log
+
+
+INCLUDING THE DMA CHANNEL
+./qemu-system-aarch64 -M xilinx-zynq-a9 -serial pty -serial pty -nographic -kernel /home/antonio/git/Cosmos-plus-OpenSSD/Source/Predefined_Project/OpenSSD2_2Ch8Way-1.0.1/OpenSSD2.sdk/greedyCosmos/Debug/greedyCosmos.elf -dtb /opt/Xilinx/Others/2017.2-zc706-release/cosmos.dtb -drive file=channel0.flash,if=none,format=raw,id=fid0 -drive file=channel1.flash,if=none,format=raw,id=fid1 -device tiger4nsc,drive=fid0,ways=2,phys=0x43c10000 -device tiger4nsc,drive=fid1,ways=2,phys=0x43c00000 -chardev socket,path=/tmp/nvme_server,server,nowait,id=nvme_server -chardev socket,path=/tmp/dma_server,server,nowait,id=dma_server -device nvme_dev,phys=0x83c00000,chardev=nvme_server,dmadev=dma_server  -s -S -D my.log
+
+
+
+OLD OLD OLD OLD OLD OLD dd if=/dev/zero ibs=1M count=2048 | tr "\000" "\377" > channel0.flash 
+OLD OLD OLD OLD OLD OLD dd if=/dev/zero ibs=1M count=2048 | tr "\000" "\377" > channel1.flash 
+
+ 2168  dd if=/dev/zero ibs=1056k count=2048 | tr "\000" "\377" > channel1.flash 
+ 2170  dd if=/dev/zero ibs=1056k count=2048 | tr "\000" "\377" > channel0.flash 
+
+
+

@@ -1,0 +1,61 @@
+
+HOW TO COMPILE
+==============
+ 
+Please note that this short guide assumes that the repositories are installed in the specific directories. It is therefore needed to update the paths.
+ 
+1) Create an out of the source tree directory build and make the sources
+
+# mkdir qemu-build-x86
+# cd qemu-build-x86
+# ../qemu-openssd/configure --disable-libssh2 --disable-tcmalloc --disable-glusterfs --disable-seccomp --disable-{bzip2,snappy,lzo} --disable-usb-redir --disable-libusb --disable-libnfs --disable-libiscsi --disable-rbd  --disable-spice --disable-attr --disable-cap-ng --disable-linux-aio --disable-uuid --disable-brlapi --disable-vnc-{jpeg,sasl,png} --disable-rdma --disable-bluez --disable-fdt --disable-curl --disable-curses --disable-sdl --disable-gtk  --disable-tpm --disable-vte --disable-xen --disable-opengl --target-list=x86_64-softmmu
+# make -j 8
+# cd x86_64-softmmu/
+ 
+2) If a disk image is not available please create one, by installing for example Ubuntu Server distro
+ 
+# ./qemu-system-x86_64 -hda /mnt/nvme0n1p1/antonio/git/qemu-bin/x86/ubuntu-test.img -cdrom /mnt/nvme0n1p1/antonio/git/qemu-bin/x86/ubuntu-16.04.3-server-amd64.iso -m 8G -boot d -smp 4 -monitor stdio
+
+ON ANOTHER TERMINAL 
+
+# vncviewer :5900
+ 
+3) During the guided installation process consider to install an ssh server in order to connect into quem from your host machine. Some guides that can help in the installation process follows. Please note that new versions of QEMU already include the loading of a network bridge that enables the guest software to access the network via the host (an emulated e1000 network card usually provides this connection)
+ 
+https://help.ubuntu.com/community/Installation/QemuEmulator
+https://wiki.qemu.org/index.php/Documentation/Networking
+
+4) Test the installation with the vanilla emulated NVMe device in QEMU. It is necessary to restart the QEMU with new parameters that include th NVMe device as a machine device. Before doing that an empty disk image must be created to act as storage.
+
+TURN OFF THE VIRTUAL MACHINE
+
+# dd if=/dev/zero of=blknvme bs=1M count=1024
+# ./qemu-system-x86_64 -hda /mnt/nvme0n1p1/antonio/git/qemu-bin/x86/ubuntu-test.img -m 8G -smp 4 -monitor stdio -drive file=blknvme,if=none,id=mynvme -device nvme,drive=mynvme,serial=deadbeef,cmb_size_mb=1024
+
+IN THE VIRTUAL MACHINE
+
+ubuntu# apt-get install nvme-cli
+ubuntu# fdisk /dev/nvme0n1 
+   n ENTER
+   p ENTER
+   1 ENTER
+   ENTER
+   ENTER
+   w ENTER
+ubuntu# fdisk -l
+ubuntu# sudo mkfs -t ext4 /dev/nvme0n1p1 
+ubuntu# mount /dev/nvme0n1p1 /mnt/
+
+5) Now that the test is succesfull it is possible to boot up the entire system together with the SSD QEMU. Please make sure that the x86 QEMU is off and load the SSD QEMU first. When the firmware loading on the SSD QEMU is up then the x86 QEMU can be started with the following command (use --enable-kvm to accelerate the QEMU execution and "-gdb tcp:12345" for debugging)
+
+TURN OFF THE VIRTUAL MACHINE
+
+WAIT FOR THE SSD QEMU TO BE UP AND RUNNING
+
+# ./qemu-system-x86_64 -hda /mnt/nvme0n1p1/antonio/git/qemu-bin/x86/ubuntu-test.img -m 8G -smp 4 -monitor stdio -serial pty -chardev socket,path=/tmp/nvme_server,nowait,id=nvme_server -chardev socket,path=/tmp/dma_server,nowait,id=dma_server -device nvme_ctrl,serial=deadbeef,cmb_size_mb=1024,chardev=nvme_server,dmadev=dma_server -gdb tcp::12345 -D my.log --enable-kvm
+
+CREDENTIALS FOR THE SHIPPED UBUNTU IMAGE
+
+ubuntu login: antonio
+Password: antonio
+
